@@ -8,7 +8,7 @@ import { createWoodTextures, type WoodTextures } from './woodTexture';
  * what makes a wall read as a set of battens rather than as a flat panel.
  */
 const VARIANT_SHADES = [1, 0.935, 1.055, 0.885, 1.02, 0.965];
-const VARIED_KEYS: MaterialKey[] = ['pineExterior', 'pineInterior', 'structureWood'];
+const VARIED_KEYS: MaterialKey[] = ['pineExterior', 'pineInterior', 'structureWood', 'foliage', 'foliageDry'];
 
 /**
  * Simple, dependency free materials. No external texture is used in this version:

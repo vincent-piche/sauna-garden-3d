@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { normalFromHeight } from './normalFromHeight';
 
 /**
  * Procedural pine grain, drawn on a canvas at load time like the slate.
@@ -100,37 +101,6 @@ function drawGrain(): WoodCanvases {
   return { colour, height, roughness };
 }
 
-function heightToNormal(height: HTMLCanvasElement, strength: number): HTMLCanvasElement {
-  const normal = document.createElement('canvas');
-  normal.width = WIDTH;
-  normal.height = HEIGHT;
-  const source = height.getContext('2d');
-  const target = normal.getContext('2d');
-  if (!source || !target) {
-    return normal;
-  }
-
-  const input = source.getImageData(0, 0, WIDTH, HEIGHT).data;
-  const output = target.createImageData(WIDTH, HEIGHT);
-  const at = (x: number, y: number): number =>
-    input[(((y + HEIGHT) % HEIGHT) * WIDTH + ((x + WIDTH) % WIDTH)) * 4] / 255;
-
-  for (let y = 0; y < HEIGHT; y += 1) {
-    for (let x = 0; x < WIDTH; x += 1) {
-      const dx = (at(x + 1, y) - at(x - 1, y)) * strength;
-      const dy = (at(x, y + 1) - at(x, y - 1)) * strength;
-      const length = Math.hypot(dx, dy, 1);
-      const index = (y * WIDTH + x) * 4;
-      output.data[index] = ((-dx / length) * 0.5 + 0.5) * 255;
-      output.data[index + 1] = ((-dy / length) * 0.5 + 0.5) * 255;
-      output.data[index + 2] = (1 / length) * 0.5 * 255 + 127.5;
-      output.data[index + 3] = 255;
-    }
-  }
-  target.putImageData(output, 0, 0);
-  return normal;
-}
-
 export interface WoodTextures {
   map: THREE.CanvasTexture;
   normalMap: THREE.CanvasTexture;
@@ -140,7 +110,7 @@ export interface WoodTextures {
 export function createWoodTextures(): WoodTextures {
   const { colour, height, roughness } = drawGrain();
   const map = new THREE.CanvasTexture(colour);
-  const normalMap = new THREE.CanvasTexture(heightToNormal(height, 3));
+  const normalMap = new THREE.CanvasTexture(normalFromHeight(height, 3));
   const roughnessMap = new THREE.CanvasTexture(roughness);
 
   for (const texture of [map, normalMap, roughnessMap]) {

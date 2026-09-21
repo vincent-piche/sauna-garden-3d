@@ -1,16 +1,18 @@
 import { cloneConfig, DEFAULT_SAUNA_CONFIG, type SaunaConfig } from '../config/saunaConfig';
+import { cloneRenderConfig, DEFAULT_RENDER_CONFIG, type RenderConfig } from '../core/renderConfig';
 import { cloneSiteConfig, DEFAULT_SITE_CONFIG, type SiteConfig } from '../environment/siteConfig';
 import { downloadTextFile } from './download';
 
 export const PROJECT_FILE_NAME = 'sauna-projet.json';
 const FILE_FORMAT = 'sauna-garden-3d';
-const FILE_VERSION = 2;
+const FILE_VERSION = 3;
 const MIME_TYPE = 'application/json';
 
-/** Everything a project needs: the building and its site. */
+/** Everything a project needs: the building, its site and the rendering quality. */
 export interface SaunaProject {
   config: SaunaConfig;
   site: SiteConfig;
+  render: RenderConfig;
 }
 
 export interface SaunaProjectFile extends SaunaProject {
@@ -73,7 +75,8 @@ export function serializeProject(project: SaunaProject): string {
     version: FILE_VERSION,
     savedAt: new Date().toISOString(),
     config: project.config,
-    site: project.site
+    site: project.site,
+    render: project.render
   };
   return `${JSON.stringify(payload, null, 2)}\n`;
 }
@@ -128,14 +131,16 @@ export function parseProject(text: string): SaunaProject {
   // A file without the format envelope is read as a flat set of parameters.
   const configSource = 'config' in wrapper ? asRecord(wrapper.config) : wrapper;
   const siteSource = 'site' in wrapper ? asRecord(wrapper.site) : wrapper;
+  const renderSource = 'render' in wrapper ? asRecord(wrapper.render) : wrapper;
 
   const config = sanitise(cloneConfig(DEFAULT_SAUNA_CONFIG), configSource);
   const site = sanitise(cloneSiteConfig(DEFAULT_SITE_CONFIG), siteSource);
+  const render = sanitise(cloneRenderConfig(DEFAULT_RENDER_CONFIG), renderSource);
 
-  if (config.recognised + site.recognised === 0) {
+  if (config.recognised + site.recognised + render.recognised === 0) {
     throw new Error("Aucun paramètre reconnu : ce fichier n'est pas un projet de sauna.");
   }
-  return { config: config.value, site: site.value };
+  return { config: config.value, site: site.value, render: render.value };
 }
 
 /** Writes the project to disk, falling back to a plain download. */

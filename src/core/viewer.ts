@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { mm } from '../config/units';
+import type { RenderConfig } from './renderConfig';
 import { SkyDome } from './skyDome';
 
 const SHADOW_EXTENT = 32; // metres, wide enough for the trees and their long shadows
@@ -34,6 +39,8 @@ const LOW_SUN = new THREE.Color(0xff9a4e);
 const EXPOSURE_AT_HORIZON = 0.92;
 const EXPOSURE_AT_ZENITH = 0.26;
 const SUN_INTENSITY = 4.2;
+/** Reach of the ambient occlusion, in metres: the scale of a reveal or a bench slat. */
+const AO_RADIUS = 0.5;
 
 function smoothstep(edge0: number, edge1: number, value: number): number {
   const t = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)));
@@ -54,7 +61,15 @@ export class Viewer {
   private readonly hazeColor = new THREE.Color();
   private readonly haze: THREE.Fog;
   private readonly sunColor = new THREE.Color();
+  private composer: EffectComposer | null = null;
+  private ambientOcclusion: GTAOPass | null = null;
+  private useAmbientOcclusion = false;
+  private maxPixelRatio = 2;
   private animationHandle = 0;
+  private lastFrameTime = 0;
+
+  /** Called once per frame before rendering, for anything that animates. */
+  onBeforeRender: ((deltaSeconds: number) => void) | null = null;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -135,6 +150,29 @@ export class Viewer {
     );
   }
 
+  /**
+   * Applies the quality settings. Ambient occlusion needs a second render pass over the
+   * frame, so the composer is only built the first time it is switched on, and the plain
+   * renderer is used whenever it is off.
+   */
+  applyRenderConfig(config: RenderConfig): void {
+    this.maxPixelRatio = config.renderScale;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.maxPixelRatio));
+
+    const shadowSize = config.highResolutionShadows ? 4096 : 2048;
+    if (this.sun.shadow.mapSize.width !== shadowSize) {
+      this.sun.shadow.mapSize.set(shadowSize, shadowSize);
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+    }
+
+    this.useAmbientOcclusion = config.ambientOcclusion;
+    if (this.useAmbientOcclusion && !this.composer) {
+      this.buildComposer();
+    }
+    this.handleResize();
+  }
+
   setSectionEnabled(enabled: boolean, offsetMillimetres: number): void {
     this.sectionPlane.constant = mm(offsetMillimetres);
     this.renderer.clippingPlanes = enabled ? [this.sectionPlane] : [];
@@ -147,12 +185,21 @@ export class Viewer {
   }
 
   start(): void {
-    const render = (): void => {
+    const render = (time: number): void => {
       this.animationHandle = requestAnimationFrame(render);
+      const delta = this.lastFrameTime ? Math.min(0.1, (time - this.lastFrameTime) / 1000) : 0;
+      this.lastFrameTime = time;
+
       this.controls.update();
-      this.renderer.render(this.scene, this.camera);
+      this.onBeforeRender?.(delta);
+
+      if (this.useAmbientOcclusion && this.composer) {
+        this.composer.render();
+      } else {
+        this.renderer.render(this.scene, this.camera);
+      }
     };
-    render();
+    requestAnimationFrame(render);
   }
 
   dispose(): void {
@@ -160,6 +207,7 @@ export class Viewer {
     window.removeEventListener('resize', this.handleResize);
     this.controls.dispose();
     this.skyDome.dispose();
+    this.composer?.dispose();
     this.renderer.dispose();
   }
 
@@ -178,6 +226,30 @@ export class Viewer {
             (2 * Math.atan(Math.tan((BASE_FIELD_OF_VIEW * Math.PI) / 360) / aspect) * 180) / Math.PI
           );
     this.camera.updateProjectionMatrix();
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.maxPixelRatio));
     this.renderer.setSize(width, height, false);
+    this.composer?.setSize(width, height);
   };
+
+  private buildComposer(): void {
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+
+    const width = this.canvas.clientWidth || window.innerWidth;
+    const height = this.canvas.clientHeight || window.innerHeight;
+    this.ambientOcclusion = new GTAOPass(this.scene, this.camera, width, height);
+    this.ambientOcclusion.updateGtaoMaterial({
+      radius: AO_RADIUS,
+      distanceExponent: 1,
+      thickness: 1,
+      scale: 1.45,
+      samples: 16,
+      distanceFallOff: 1,
+      screenSpaceRadius: false
+    });
+    this.composer.addPass(this.ambientOcclusion);
+    // Tone mapping happens here: three skips it when rendering into a render target,
+    // so the passes work in linear space and OutputPass closes the chain.
+    this.composer.addPass(new OutputPass());
+  }
 }

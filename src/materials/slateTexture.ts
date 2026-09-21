@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { normalFromHeight } from './normalFromHeight';
 
 /**
  * Procedural slate roofing, drawn on a canvas at load time.
@@ -87,40 +88,6 @@ function drawSlates(): SlateCanvases {
   return { color, height };
 }
 
-/** Converts a height canvas into a tangent space normal map. */
-function heightToNormal(height: HTMLCanvasElement, strength: number): HTMLCanvasElement {
-  const normal = document.createElement('canvas');
-  normal.width = normal.height = TEXTURE_SIZE;
-  const source = height.getContext('2d');
-  const target = normal.getContext('2d');
-  if (!source || !target) {
-    return normal;
-  }
-
-  const input = source.getImageData(0, 0, TEXTURE_SIZE, TEXTURE_SIZE).data;
-  const output = target.createImageData(TEXTURE_SIZE, TEXTURE_SIZE);
-  const at = (x: number, y: number): number => {
-    const wrappedX = (x + TEXTURE_SIZE) % TEXTURE_SIZE;
-    const wrappedY = (y + TEXTURE_SIZE) % TEXTURE_SIZE;
-    return input[(wrappedY * TEXTURE_SIZE + wrappedX) * 4] / 255;
-  };
-
-  for (let y = 0; y < TEXTURE_SIZE; y += 1) {
-    for (let x = 0; x < TEXTURE_SIZE; x += 1) {
-      const dx = (at(x + 1, y) - at(x - 1, y)) * strength;
-      const dy = (at(x, y + 1) - at(x, y - 1)) * strength;
-      const length = Math.hypot(dx, dy, 1);
-      const index = (y * TEXTURE_SIZE + x) * 4;
-      output.data[index] = ((-dx / length) * 0.5 + 0.5) * 255;
-      output.data[index + 1] = ((-dy / length) * 0.5 + 0.5) * 255;
-      output.data[index + 2] = (1 / length) * 0.5 * 255 + 127.5;
-      output.data[index + 3] = 255;
-    }
-  }
-  target.putImageData(output, 0, 0);
-  return normal;
-}
-
 export interface SlateTextures {
   map: THREE.CanvasTexture;
   normalMap: THREE.CanvasTexture;
@@ -131,7 +98,7 @@ export interface SlateTextures {
 export function createSlateTextures(): SlateTextures {
   const { color, height } = drawSlates();
   const map = new THREE.CanvasTexture(color);
-  const normalMap = new THREE.CanvasTexture(heightToNormal(height, 6));
+  const normalMap = new THREE.CanvasTexture(normalFromHeight(height, 6));
 
   for (const texture of [map, normalMap]) {
     texture.wrapS = THREE.RepeatWrapping;

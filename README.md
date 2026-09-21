@@ -64,8 +64,11 @@ src/
 │  └─ units.ts              Conversion mm -> unités Three.js (1 unité = 1 m)
 ├─ materials/
 │  ├─ materialKeys.ts       Identifiants de matériaux (sans dépendance Three.js)
-│  ├─ materialLibrary.ts    Matériaux simples, nuances de bois, échelle des ardoises
-│  └─ slateTexture.ts       Texture d'ardoise et carte de normales dessinées par le code
+│  ├─ materialLibrary.ts    Matériaux, nuances de bois, échelle des ardoises
+│  ├─ slateTexture.ts       Ardoises dessinées par le code
+│  ├─ woodTexture.ts        Veinage de pin dessiné par le code
+│  ├─ waterTexture.ts       Rides de l'eau, raccordables
+│  └─ normalFromHeight.ts   Carte de hauteur vers carte de normales
 ├─ geometry/
 │  ├─ woodPiece.ts          createWoodPiece() : la brique de base de tout le bois
 │  ├─ wallBuilder.ts        Construction d'une paroi multicouche avec ouvertures
@@ -97,8 +100,10 @@ src/
 │  ├─ configFile.ts         Enregistrement / ouverture du projet en JSON
 │  └─ download.ts           Téléchargement de secours
 ├─ core/
-│  ├─ viewer.ts             Scène, caméra, lumières, ombres, plan de coupe
-│  └─ cameraViews.ts        Les 9 vues prédéfinies, calculées depuis les dimensions
+│  ├─ viewer.ts             Scène, caméra, lumières, ombres, post-traitement, coupe
+│  ├─ skyDome.ts            Ciel atmosphérique et ambiance préfiltrée depuis ce ciel
+│  ├─ renderConfig.ts       Réglages de qualité, tous débrayables
+│  └─ cameraViews.ts        Les vues prédéfinies, calculées depuis les dimensions
 ├─ ui/
 │  ├─ appShell.ts           Tiroir de paramètres et gestes tactiles
 │  ├─ controlPanel.ts       Panneau de paramètres (déclaratif)
@@ -239,6 +244,19 @@ pris en compte par les modes de visualisation (via son `tag`) et par la nomencla
 
 **Modes de visualisation** : chaque maillage porte un `tag` (`structure`, `exteriorCladding`,
 `insulation`, `glazing`, `furniture`, `stove`…). Les modes ne manipulent que ces étiquettes :
+
+### Qualité de rendu
+
+La section **Qualité de rendu** du panneau permet de couper chaque amélioration
+indépendamment, et ces réglages sont enregistrés avec le projet :
+
+| Réglage | Coût | À couper en premier |
+|---|---|---|
+| Occlusion ambiante | élevé | oui, c'est la plus chère |
+| Reflets de l'eau | moyen — une seconde passe de rendu en 512 px | ensuite |
+| Végétation détaillée | faible — géométrie seulement | rarement utile |
+| Ombres fines | faible — 4096 px au lieu de 2048 | si la carte d'ombres pèse |
+| Résolution | proportionnel à la surface | levier le plus efficace sur un écran dense |
 
 | Mode | Contenu |
 |---|---|

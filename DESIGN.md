@@ -226,6 +226,32 @@ aussi floutée.
 écran : à exposition fixe, l'aube est noire et midi est brûlé. L'exposition suit donc le
 soleil comme le ferait un appareil photo, de 0,92 à l'horizon à 0,26 au zénith.
 
+**Occlusion ambiante.** Un passage d'écran (`GTAOPass`) assombrit les creux, les angles et
+les contacts, ce qui pose enfin les objets les uns sur les autres. Le rayon est de 50 cm,
+l'échelle d'un tableau de porte ou d'une latte de banc. Le tone mapping est fait en fin de
+chaîne par `OutputPass` : three désactive de lui-même le tone mapping des matériaux quand on
+rend vers une cible, donc la correction n'est pas appliquée deux fois.
+
+**Eau réfléchissante.** Le bassin rend la scène une seconde fois dans une cible de 512 px
+pour s'y réfléchir, avec une carte de rides procédurale faite de sinusoïdes à nombres d'onde
+entiers, donc raccordable. Sa géométrie est la seule du bassin à rester debout dans son plan,
+la rotation étant portée par l'objet : `Water` déduit son plan miroir de l'axe Z local. Son
+shader lui étant propre, il ignore le plan de coupe.
+
+**Végétation.** Les arbres sont des amas de feuillage qui se recouvrent, chaque volume étant
+une sphère dont les sommets sont repoussés le long de leur propre rayon par une fonction de
+hachage. Le hachage prend la position du sommet en entrée, si bien que deux sommets confondus
+se déplacent identiquement et que les volumes ne s'ouvrent jamais sur leurs coutures. Un amas
+de volumes irréguliers se lit comme une houppe, là où un cône lisse ne se lisait que comme un
+cône.
+
+**Qualité réglable.** Occlusion ambiante, reflets, végétation détaillée, finesse des ombres et
+résolution se règlent depuis le panneau et se sauvegardent avec le projet. Ce sont des
+arbitrages de machine, pas des choix de conception : ils vivent donc dans une configuration à
+part, `RenderConfig`. L'occlusion ambiante est de loin la plus coûteuse — dans une boucle de
+rendu synchrone elle double le temps par image — et c'est la première à couper sur une
+machine qui peine.
+
 **Veinage du bois.** Chaque pièce est une boîte dont les faces sont mappées de 0 à 1, et
 chaque latte fait environ 80 mm de large pour des longueurs métriques. Le veinage est donc
 dessiné en longues stries suivant U, la longueur de la pièce, et c'est sa densité suivant V

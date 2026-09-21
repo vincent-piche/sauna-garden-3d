@@ -34,9 +34,15 @@ export function roundedRect(
   return shape;
 }
 
+/** Millimetre shape to Three.js units, still standing in its own plane. */
+export function toMetres(geometry: THREE.BufferGeometry): THREE.BufferGeometry {
+  geometry.scale(0.001, 0.001, 0.001);
+  return geometry;
+}
+
 /** Millimetre shape to a horizontal geometry in Three.js units, normal pointing up. */
 export function layFlat(geometry: THREE.BufferGeometry): THREE.BufferGeometry {
-  geometry.scale(0.001, 0.001, 0.001);
+  toMetres(geometry);
   geometry.rotateX(-Math.PI / 2);
   return geometry;
 }

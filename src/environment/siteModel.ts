@@ -1,5 +1,7 @@
 import * as THREE from 'three';
+import { Water } from 'three/examples/jsm/objects/Water.js';
 import type { SaunaGeometry } from '../config/derivedGeometry';
+import type { RenderConfig } from '../core/renderConfig';
 import { mm } from '../config/units';
 import type { MaterialLibrary } from '../materials/materialLibrary';
 import { buildPool, type PoolLayout } from './pool';
@@ -34,6 +36,7 @@ export class SiteModel {
   private sunMarker: THREE.Mesh | null = null;
   private poolGroup: THREE.Group | null = null;
   private treeGroup: THREE.Group | null = null;
+  private water: Water | null = null;
   private shape: TerrainShape | null = null;
 
   constructor(private readonly materials: MaterialLibrary) {
@@ -46,7 +49,7 @@ export class SiteModel {
     return this.shape ? this.shape.groundLevel + terrainHeight(x, z, this.shape) : 0;
   }
 
-  build(site: SiteConfig, sauna: SaunaGeometry): void {
+  build(site: SiteConfig, sauna: SaunaGeometry, render: RenderConfig): void {
     const shape: TerrainShape = {
       crestZ: -sauna.depth / 2 - site.slopeStart,
       slope: site.gardenSlope / 100,
@@ -60,6 +63,7 @@ export class SiteModel {
     const poolZMin = sauna.depth / 2 + site.poolDistance + site.copingWidth;
     const poolCenterX = site.poolOffsetX;
     const layout: PoolLayout = {
+      reflective: render.waterReflections,
       centerX: poolCenterX,
       centerZ: poolZMin + site.poolWidth / 2,
       length: site.poolLength,
@@ -76,7 +80,7 @@ export class SiteModel {
     };
 
     this.buildTerrainIfNeeded(shape, layout.terrace);
-    this.buildDecor(site, sauna, layout);
+    this.buildDecor(site, sauna, layout, render);
     this.decor.visible = site.showDecor;
   }
 
@@ -84,7 +88,19 @@ export class SiteModel {
    * Places the sun marker and, when the day or the orientation changed, redraws the
    * arc the sun follows over the site on that date.
    */
+  /** Advances anything that animates on its own, currently only the ripples. */
+  tick(deltaSeconds: number): void {
+    if (this.water) {
+      this.water.material.uniforms.time.value += deltaSeconds;
+    }
+  }
+
   applySun(site: SiteConfig, position: SunPosition): void {
+    if (this.water) {
+      const [x, y, z] = sunDirection(position, site.bayAzimuth);
+      this.water.material.uniforms.sunDirection.value.set(x, y, z).normalize();
+    }
+
     this.sunPathGroup.visible = site.showSunPath;
     if (!site.showSunPath) {
       return;
@@ -161,7 +177,7 @@ export class SiteModel {
    * Without this, dragging any slider of the building would retriangulate the whole
    * decor on every frame.
    */
-  private buildDecor(site: SiteConfig, sauna: SaunaGeometry, layout: PoolLayout): void {
+  private buildDecor(site: SiteConfig, sauna: SaunaGeometry, layout: PoolLayout, render: RenderConfig): void {
     const poolSignature = JSON.stringify(layout);
     if (poolSignature !== this.poolSignature) {
       this.poolSignature = poolSignature;
@@ -169,10 +185,16 @@ export class SiteModel {
       dispose(this.poolGeometries);
       this.poolGroup = buildPool(layout, this.materials, (geometry) => this.poolGeometries.push(geometry));
       tagAsSite(this.poolGroup);
+      this.water = null;
+      this.poolGroup.traverse((object) => {
+        if (object instanceof Water) {
+          this.water = object;
+        }
+      });
       this.decor.add(this.poolGroup);
     }
 
-    const specs = this.treeSpecs(site, sauna);
+    const specs = this.treeSpecs(site, sauna, render.detailedVegetation);
     const treeSignature = JSON.stringify(specs);
     if (treeSignature !== this.treeSignature) {
       this.treeSignature = treeSignature;
@@ -193,10 +215,19 @@ export class SiteModel {
    * the cedar mass on the right, the cypress screen on the left, and the low hedge
    * on the valley side which decides whether the bay really looks out or not.
    */
-  private treeSpecs(site: SiteConfig, sauna: SaunaGeometry): TreeSpec[] {
+  private treeSpecs(site: SiteConfig, sauna: SaunaGeometry, detailed: boolean): TreeSpec[] {
     const specs: TreeSpec[] = [];
     const place = (kind: TreeSpec['kind'], x: number, z: number, height: number, radiusRatio: number, foliage?: TreeSpec['foliage']): void => {
-      specs.push({ kind, x, z, height, radius: height * radiusRatio, groundY: this.groundAt(x, z), foliage });
+      specs.push({
+        kind,
+        x,
+        z,
+        height,
+        radius: height * radiusRatio,
+        groundY: this.groundAt(x, z),
+        foliage,
+        detailed
+      });
     };
 
     place('spreading', site.cedarDistance, -3000, site.cedarHeight, 0.33, 'foliageDry');
@@ -277,6 +308,7 @@ export class SiteModel {
     this.decor.clear();
     this.poolGroup = null;
     this.treeGroup = null;
+    this.water = null;
     this.poolSignature = '';
     this.treeSignature = '';
     dispose(this.poolGeometries);

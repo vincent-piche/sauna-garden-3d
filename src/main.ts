@@ -1,6 +1,7 @@
 import './ui/styles.css';
 import { cloneConfig, DEFAULT_SAUNA_CONFIG, type SaunaConfig } from './config/saunaConfig';
 import { getViewPreset, type ViewName } from './core/cameraViews';
+import { cloneRenderConfig, DEFAULT_RENDER_CONFIG, type RenderConfig } from './core/renderConfig';
 import { Viewer } from './core/viewer';
 import { cloneSiteConfig, DEFAULT_SITE_CONFIG, type SiteConfig } from './environment/siteConfig';
 import { SiteModel } from './environment/siteModel';
@@ -11,6 +12,9 @@ import { SaunaModel } from './model/saunaModel';
 import type { ViewMode } from './model/viewModes';
 import { setupAppShell } from './ui/appShell';
 import { ControlPanel } from './ui/controlPanel';
+
+/** Quality settings that need the site geometry rebuilt rather than a renderer setting. */
+const SITE_REBUILDING_KEYS = new Set<keyof RenderConfig>(['waterReflections', 'detailedVegetation']);
 
 /** Site parameters that only move the sun, and never rebuild any geometry. */
 const SUN_ONLY_KEYS = new Set<keyof SiteConfig>([
@@ -44,6 +48,7 @@ viewer.scene.add(model.root, siteModel.root);
 
 let config: SaunaConfig = cloneConfig(DEFAULT_SAUNA_CONFIG);
 let siteConfig: SiteConfig = cloneSiteConfig(DEFAULT_SITE_CONFIG);
+let renderConfig: RenderConfig = cloneRenderConfig(DEFAULT_RENDER_CONFIG);
 let viewMode: ViewMode = 'finished';
 let pendingFrame = 0;
 let saunaIsStale = true;
@@ -51,7 +56,7 @@ let siteIsStale = true;
 
 const panel = new ControlPanel(
   panelContainer,
-  { config, site: siteConfig },
+  { config, site: siteConfig, render: renderConfig },
   {
     onSaunaChange(next, key) {
       config = next;
@@ -75,9 +80,18 @@ const panel = new ControlPanel(
       }
       scheduleRebuild({ sauna: false, site: true });
     },
+    onRenderChange(next, key) {
+      renderConfig = next;
+      viewer.applyRenderConfig(renderConfig);
+      if (SITE_REBUILDING_KEYS.has(key)) {
+        scheduleRebuild({ sauna: false, site: true });
+      }
+    },
     onProjectLoaded(project: SaunaProject) {
       config = project.config;
       siteConfig = project.site;
+      renderConfig = project.render;
+      viewer.applyRenderConfig(renderConfig);
       scheduleRebuild({ sauna: true, site: true });
     },
     onView(view) {
@@ -122,7 +136,7 @@ function rebuild(): void {
     panel.update(model);
   }
   if (siteIsStale || saunaIsStale) {
-    siteModel.build(siteConfig, model.geometry);
+    siteModel.build(siteConfig, model.geometry, renderConfig);
   }
   saunaIsStale = false;
   siteIsStale = false;
@@ -155,6 +169,8 @@ function applyView(view: ViewName): void {
   viewer.applyPose(preset);
 }
 
+viewer.applyRenderConfig(renderConfig);
+viewer.onBeforeRender = (delta) => siteModel.tick(delta);
 rebuild();
 setViewMode('finished');
 applyView('exterior');
@@ -169,6 +185,7 @@ if (import.meta.env.DEV) {
       viewer,
       getConfig: () => config,
       getSite: () => siteConfig,
+      getRender: () => renderConfig,
       rebuild: () => scheduleRebuild({ sauna: true, site: true }),
       applyView,
       setViewMode,

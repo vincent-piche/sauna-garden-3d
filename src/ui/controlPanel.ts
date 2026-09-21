@@ -1,5 +1,6 @@
 import { cloneConfig, DEFAULT_SAUNA_CONFIG, type ConstructionMode, type SaunaConfig } from '../config/saunaConfig';
 import { VIEW_LABELS, type ViewName } from '../core/cameraViews';
+import { cloneRenderConfig, DEFAULT_RENDER_CONFIG, type RenderConfig } from '../core/renderConfig';
 import {
   cloneSiteConfig,
   DEFAULT_SITE_CONFIG,
@@ -36,6 +37,22 @@ type SiteNumericKey = {
   [K in keyof SiteConfig]: SiteConfig[K] extends number ? K : never;
 }[keyof SiteConfig];
 
+type RenderNumericKey = {
+  [K in keyof RenderConfig]: RenderConfig[K] extends number ? K : never;
+}[keyof RenderConfig];
+
+type SiteToggleKey = {
+  [K in keyof SiteConfig]: SiteConfig[K] extends boolean ? K : never;
+}[keyof SiteConfig];
+
+type RenderToggleKey = {
+  [K in keyof RenderConfig]: RenderConfig[K] extends boolean ? K : never;
+}[keyof RenderConfig];
+
+type ToggleField =
+  | { scope: 'site'; key: SiteToggleKey; label: string }
+  | { scope: 'render'; key: RenderToggleKey; label: string };
+
 interface FieldBase {
   label: string;
   min: number;
@@ -49,12 +66,14 @@ interface FieldBase {
 
 type NumericField =
   | (FieldBase & { scope: 'sauna'; key: SaunaNumericKey })
-  | (FieldBase & { scope: 'site'; key: SiteNumericKey });
+  | (FieldBase & { scope: 'site'; key: SiteNumericKey })
+  | (FieldBase & { scope: 'render'; key: RenderNumericKey });
 
 interface FieldGroup {
   title: string;
   open?: boolean;
   fields: NumericField[];
+  toggles?: ToggleField[];
 }
 
 const isInsulated = (config: SaunaConfig): boolean => config.constructionMode === 'insulated';
@@ -83,6 +102,12 @@ function ground(
   return { scope: 'site', key, label, min, max, step, unit, ...extra };
 }
 
+/** Shown beside the sun readout: what the scene contains, not how well it is drawn. */
+const ENVIRONMENT_TOGGLES: ToggleField[] = [
+  { scope: 'site', key: 'showSunPath', label: 'Trajectoire du soleil' },
+  { scope: 'site', key: 'showDecor', label: 'Décor du jardin' }
+];
+
 const FIELD_GROUPS: FieldGroup[] = [
   {
     title: 'Soleil',
@@ -99,6 +124,27 @@ const FIELD_GROUPS: FieldGroup[] = [
       building('exteriorWidth', 'Largeur', 1200, 4000, 10),
       building('exteriorDepth', 'Profondeur', 1500, 5000, 10),
       building('entranceHeight', 'Hauteur (avant)', 1800, 3000, 10)
+    ]
+  },
+  {
+    title: 'Qualité de rendu',
+    toggles: [
+      { scope: 'render', key: 'ambientOcclusion', label: 'Occlusion ambiante' },
+      { scope: 'render', key: 'waterReflections', label: "Reflets de l'eau" },
+      { scope: 'render', key: 'detailedVegetation', label: 'Végétation détaillée' },
+      { scope: 'render', key: 'highResolutionShadows', label: 'Ombres fines' }
+    ],
+    fields: [
+      {
+        scope: 'render',
+        key: 'renderScale',
+        label: 'Résolution',
+        min: 1,
+        max: 2,
+        step: 0.25,
+        unit: '×',
+        format: (value) => `× ${value}`
+      }
     ]
   },
   {
@@ -239,6 +285,7 @@ const CONSTRUCTION_MODES: Array<{ id: ConstructionMode; label: string }> = [
 export interface ControlPanelCallbacks {
   onSaunaChange(config: SaunaConfig, key: keyof SaunaConfig): void;
   onSiteChange(site: SiteConfig, key: keyof SiteConfig): void;
+  onRenderChange(render: RenderConfig, key: keyof RenderConfig): void;
   onProjectLoaded(project: SaunaProject): void;
   onView(view: ViewName): void;
   onViewMode(mode: ViewMode): void;
@@ -246,17 +293,17 @@ export interface ControlPanelCallbacks {
 
 export class ControlPanel {
   private readonly sliders = new Map<string, SliderHandle>();
+  private readonly toggles = new Map<string, ToggleHandle>();
   private readonly warningsBox = el('div', 'warnings');
   private readonly statusBox = el('div', 'status');
   private readonly sunReadout = el('div', 'summary-grid');
   private readonly bomView: BomView;
   private readonly viewModeRow: ButtonRowHandle<ViewMode>;
   private readonly constructionRow: ButtonRowHandle<ConstructionMode>;
-  private readonly sunPathToggle: ToggleHandle;
-  private readonly decorToggle: ToggleHandle;
 
   private config: SaunaConfig;
   private site: SiteConfig;
+  private render: RenderConfig;
 
   constructor(
     container: HTMLElement,
@@ -265,6 +312,7 @@ export class ControlPanel {
   ) {
     this.config = cloneConfig(project.config);
     this.site = cloneSiteConfig(project.site);
+    this.render = cloneRenderConfig(project.render);
 
     container.append(el('h1', 'app-title', 'Sauna Garden 3D'));
     container.append(
@@ -287,12 +335,9 @@ export class ControlPanel {
 
     const displaySection = createSection(container, 'Environnement');
     const displayRow = el('div', 'button-row');
-    this.sunPathToggle = createToggle(displayRow, 'Trajectoire du soleil', this.site.showSunPath, (value) =>
-      this.setSiteValue('showSunPath', value)
-    );
-    this.decorToggle = createToggle(displayRow, 'Décor du jardin', this.site.showDecor, (value) =>
-      this.setSiteValue('showDecor', value)
-    );
+    for (const toggle of ENVIRONMENT_TOGGLES) {
+      this.addToggle(displayRow, toggle);
+    }
     displaySection.append(displayRow, this.sunReadout);
 
     const constructionSection = createSection(container, 'Mode de construction');
@@ -309,6 +354,13 @@ export class ControlPanel {
 
     for (const group of FIELD_GROUPS) {
       const section = createSection(container, group.title, { collapsible: true, open: group.open ?? false });
+      if (group.toggles) {
+        const row = el('div', 'button-row');
+        for (const toggle of group.toggles) {
+          this.addToggle(row, toggle);
+        }
+        section.append(row, el('div', 'field'));
+      }
       for (const field of group.fields) {
         this.addSlider(section, field);
       }
@@ -371,9 +423,11 @@ export class ControlPanel {
   applyProject(project: SaunaProject): void {
     this.config = cloneConfig(project.config);
     this.site = cloneSiteConfig(project.site);
+    this.render = cloneRenderConfig(project.render);
 
     const saunaTarget = this.config as unknown as Record<string, number>;
     const siteTarget = this.site as unknown as Record<string, number>;
+    const renderTarget = this.render as unknown as Record<string, number>;
     for (const group of FIELD_GROUPS) {
       for (const field of group.fields) {
         const handle = this.sliders.get(`${field.scope}.${field.key}`);
@@ -383,21 +437,49 @@ export class ControlPanel {
         // The slider clamps to its own range, and the configuration follows it.
         if (field.scope === 'sauna') {
           saunaTarget[field.key] = handle.setValue(this.config[field.key]);
-        } else {
+        } else if (field.scope === 'site') {
           siteTarget[field.key] = handle.setValue(this.site[field.key]);
+        } else {
+          renderTarget[field.key] = handle.setValue(this.render[field.key]);
         }
       }
+      for (const toggle of group.toggles ?? []) {
+        this.toggles.get(`${toggle.scope}.${toggle.key}`)?.setValue(this.readToggle(toggle));
+      }
+    }
+    for (const toggle of ENVIRONMENT_TOGGLES) {
+      this.toggles.get(`${toggle.scope}.${toggle.key}`)?.setValue(this.readToggle(toggle));
     }
 
     this.constructionRow.setActive(this.config.constructionMode);
-    this.sunPathToggle.setValue(this.site.showSunPath);
-    this.decorToggle.setValue(this.site.showDecor);
     this.refreshEnabledState();
-    this.callbacks.onProjectLoaded({ config: this.config, site: this.site });
+    this.callbacks.onProjectLoaded({ config: this.config, site: this.site, render: this.render });
+  }
+
+  private readToggle(field: ToggleField): boolean {
+    return field.scope === 'site' ? this.site[field.key] : this.render[field.key];
+  }
+
+  private addToggle(parent: HTMLElement, field: ToggleField): void {
+    const handle = createToggle(parent, field.label, this.readToggle(field), (value) => {
+      if (field.scope === 'site') {
+        this.site = { ...this.site, [field.key]: value };
+        this.callbacks.onSiteChange(this.site, field.key);
+      } else {
+        this.render = { ...this.render, [field.key]: value };
+        this.callbacks.onRenderChange(this.render, field.key);
+      }
+    });
+    this.toggles.set(`${field.scope}.${field.key}`, handle);
   }
 
   private addSlider(section: HTMLElement, field: NumericField): void {
-    const current = field.scope === 'sauna' ? this.config[field.key] : this.site[field.key];
+    const current =
+      field.scope === 'sauna'
+        ? this.config[field.key]
+        : field.scope === 'site'
+          ? this.site[field.key]
+          : this.render[field.key];
     const handle = createSlider(section, {
       label: field.label,
       min: field.min,
@@ -410,18 +492,16 @@ export class ControlPanel {
         if (field.scope === 'sauna') {
           this.config = { ...this.config, [field.key]: value };
           this.callbacks.onSaunaChange(this.config, field.key);
-        } else {
+        } else if (field.scope === 'site') {
           this.site = { ...this.site, [field.key]: value };
           this.callbacks.onSiteChange(this.site, field.key);
+        } else {
+          this.render = { ...this.render, [field.key]: value };
+          this.callbacks.onRenderChange(this.render, field.key);
         }
       }
     });
     this.sliders.set(`${field.scope}.${field.key}`, handle);
-  }
-
-  private setSiteValue(key: 'showSunPath' | 'showDecor', value: boolean): void {
-    this.site = { ...this.site, [key]: value };
-    this.callbacks.onSiteChange(this.site, key);
   }
 
   private actionButton(label: string, onClick: () => void): HTMLButtonElement {
@@ -438,7 +518,7 @@ export class ControlPanel {
   }
 
   private async save(): Promise<void> {
-    const result = await saveProjectToDisk({ config: this.config, site: this.site });
+    const result = await saveProjectToDisk({ config: this.config, site: this.site, render: this.render });
     switch (result.status) {
       case 'saved':
         this.setStatus(`Projet enregistré dans ${result.filename}.`, 'info');
@@ -470,7 +550,11 @@ export class ControlPanel {
   }
 
   private reset(): void {
-    this.applyProject({ config: DEFAULT_SAUNA_CONFIG, site: DEFAULT_SITE_CONFIG });
+    this.applyProject({
+      config: DEFAULT_SAUNA_CONFIG,
+      site: DEFAULT_SITE_CONFIG,
+      render: DEFAULT_RENDER_CONFIG
+    });
     this.setStatus('Paramètres réinitialisés.', 'info');
   }
 

@@ -1,9 +1,13 @@
 import * as THREE from 'three';
+import { Water } from 'three/examples/jsm/objects/Water.js';
 import { mm } from '../config/units';
 import type { MaterialLibrary } from '../materials/materialLibrary';
-import { layFlat, offsetPolygon, poolOutline, roundedRect } from './shapes';
+import { createWaterNormals } from '../materials/waterTexture';
+import { layFlat, offsetPolygon, poolOutline, roundedRect, toMetres } from './shapes';
 
 export interface PoolLayout {
+  /** Reflects the scene instead of merely picking up the sky, at the cost of a render. */
+  reflective: boolean;
   centerX: number;
   centerZ: number;
   /** Along X. */
@@ -22,6 +26,9 @@ const DECK_THICKNESS = 400;
 const BASIN_WALL = 120;
 const WATER_DROP = 130;
 const COPING_LIFT = 4;
+const REFLECTION_RESOLUTION = 512;
+/** One tile of ripples covers this much water. */
+const RIPPLE_SIZE = 2600;
 
 /**
  * In-ground pool and its paved surround.
@@ -86,8 +93,47 @@ export function buildPool(
     'Bassin – fond'
   );
 
-  const water = layFlat(new THREE.ShapeGeometry(inner, 10));
-  add(water, materials.get('poolWater'), layout.deckTop - WATER_DROP, 'Plan d’eau');
+  const waterLevel = layout.deckTop - WATER_DROP;
+  if (layout.reflective) {
+    group.add(buildReflectiveWater(layout, inner, waterLevel, collect));
+  } else {
+    add(layFlat(new THREE.ShapeGeometry(inner, 10)), materials.get('poolWater'), waterLevel, 'Plan d’eau');
+  }
 
   return group;
+}
+
+/**
+ * Reflective surface. Unlike the rest of the pool its geometry is left standing in its
+ * own plane and the mesh carries the rotation, because `Water` derives its mirror plane
+ * from the local Z axis of the object.
+ *
+ * Its shader is its own, so it ignores the section clipping plane.
+ */
+function buildReflectiveWater(
+  layout: PoolLayout,
+  outline: THREE.Shape,
+  level: number,
+  collect: (geometry: THREE.BufferGeometry) => void
+): Water {
+  const geometry = toMetres(new THREE.ShapeGeometry(outline, 12));
+  collect(geometry);
+
+  const normals = createWaterNormals();
+  normals.repeat.set(layout.length / RIPPLE_SIZE, layout.width / RIPPLE_SIZE);
+
+  const water = new Water(geometry, {
+    textureWidth: REFLECTION_RESOLUTION,
+    textureHeight: REFLECTION_RESOLUTION,
+    waterNormals: normals,
+    sunColor: 0xfff1d8,
+    waterColor: 0x0d6f84,
+    distortionScale: 1.6,
+    fog: true
+  });
+  water.rotation.x = -Math.PI / 2;
+  water.position.y = mm(level);
+  water.name = 'Plan d’eau';
+  water.userData.tag = 'site';
+  return water;
 }
