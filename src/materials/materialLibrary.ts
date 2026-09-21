@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { MaterialKey } from './materialKeys';
 import { createSlateTextures, type SlateTextures } from './slateTexture';
+import { createWoodTextures, type WoodTextures } from './woodTexture';
 
 /**
  * Timber is never perfectly uniform: each batten picks one of these shades, which is
@@ -25,13 +26,21 @@ export class MaterialLibrary {
   private readonly materials: Record<MaterialKey, THREE.Material>;
   private readonly variants = new Map<MaterialKey, THREE.Material[]>();
   private readonly slate: SlateTextures;
+  private readonly wood: WoodTextures;
 
   constructor() {
     this.slate = createSlateTextures();
+    this.wood = createWoodTextures();
+    const grain = (normalScale: number): THREE.MeshStandardMaterialParameters => ({
+      map: this.wood.map,
+      normalMap: this.wood.normalMap,
+      normalScale: new THREE.Vector2(normalScale, normalScale),
+      roughnessMap: this.wood.roughnessMap
+    });
     this.materials = {
-      pineExterior: standard(0xc9a06a, { roughness: 0.78, metalness: 0.02 }),
-      pineInterior: standard(0xe3c18d, { roughness: 0.65, metalness: 0.0 }),
-      structureWood: standard(0xb08a55, { roughness: 0.85, metalness: 0.0 }),
+      pineExterior: standard(0xd8ad74, { roughness: 0.82, metalness: 0.02, ...grain(0.7) }),
+      pineInterior: standard(0xefcd98, { roughness: 0.7, metalness: 0.0, ...grain(0.5) }),
+      structureWood: standard(0xc0965d, { roughness: 0.88, metalness: 0.0, ...grain(0.8) }),
       slate: standard(0xffffff, {
         roughness: 0.62,
         metalness: 0.06,
@@ -105,6 +114,9 @@ export class MaterialLibrary {
     }
     this.slate.map.dispose();
     this.slate.normalMap.dispose();
+    this.wood.map.dispose();
+    this.wood.normalMap.dispose();
+    this.wood.roughnessMap.dispose();
   }
 
   private buildVariants(): void {

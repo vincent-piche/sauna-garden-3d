@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { mm } from '../config/units';
+import { SkyDome } from './skyDome';
 
 const SHADOW_EXTENT = 32; // metres, wide enough for the trees and their long shadows
 const SUN_DISTANCE = 70; // metres
@@ -21,11 +21,19 @@ export interface SunState {
   altitude: number;
 }
 
-const DAY_SKY = new THREE.Color(0x8fb6da);
-const DUSK_SKY = new THREE.Color(0xd98a55);
-const NIGHT_SKY = new THREE.Color(0x101728);
-const HIGH_SUN = new THREE.Color(0xfff4e2);
-const LOW_SUN = new THREE.Color(0xff9340);
+const DAY_HAZE = new THREE.Color(0xbcd0e2);
+const DUSK_HAZE = new THREE.Color(0xc9865a);
+const NIGHT_HAZE = new THREE.Color(0x0d1320);
+const HIGH_SUN = new THREE.Color(0xfff6ea);
+const LOW_SUN = new THREE.Color(0xff9a4e);
+/**
+ * The atmospheric sky spans a huge dynamic range between dawn and noon, far more than a
+ * screen can show. Exposure therefore follows the sun the way a camera would: wide open
+ * at first light, stopped right down at midday.
+ */
+const EXPOSURE_AT_HORIZON = 0.92;
+const EXPOSURE_AT_ZENITH = 0.26;
+const SUN_INTENSITY = 4.2;
 
 function smoothstep(edge0: number, edge1: number, value: number): number {
   const t = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)));
@@ -41,8 +49,10 @@ export class Viewer {
 
   private readonly sectionPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
   private readonly sun: THREE.DirectionalLight;
-  private readonly sky: THREE.HemisphereLight;
-  private readonly backgroundColor = new THREE.Color();
+  private readonly skyDome: SkyDome;
+  private readonly sunDirection = new THREE.Vector3();
+  private readonly hazeColor = new THREE.Color();
+  private readonly haze: THREE.Fog;
   private readonly sunColor = new THREE.Color();
   private animationHandle = 0;
 
@@ -52,17 +62,14 @@ export class Viewer {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = EXPOSURE_AT_HORIZON;
 
-    this.backgroundColor.copy(DAY_SKY);
-    this.scene.background = this.backgroundColor;
-    this.scene.fog = new THREE.Fog(this.backgroundColor, 60, 600);
-
-    const environment = new RoomEnvironment();
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.scene.environment = pmrem.fromScene(environment, 0.04).texture;
-    this.scene.environmentIntensity = 0.45;
-    pmrem.dispose();
+    this.hazeColor.copy(DAY_HAZE);
+    // Fog copies the colour it is given rather than holding on to it, so the instance is
+    // kept and its colour updated in place as the light changes.
+    this.haze = new THREE.Fog(this.hazeColor, 70, 620);
+    this.scene.fog = this.haze;
+    this.skyDome = new SkyDome(this.renderer, this.scene);
 
     this.camera = new THREE.PerspectiveCamera(BASE_FIELD_OF_VIEW, 1, 0.05, 2000);
     this.camera.position.set(4, 2.5, 5);
@@ -77,10 +84,7 @@ export class Viewer {
     // zoom, the midpoint drives the pan — so both work without a mode to choose.
     this.controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
 
-    this.sky = new THREE.HemisphereLight(0xdfeaf2, 0x53603f, 1.1);
-    this.scene.add(this.sky);
-
-    this.sun = new THREE.DirectionalLight(0xfff3e0, 2.1);
+    this.sun = new THREE.DirectionalLight(0xfff3e0, SUN_INTENSITY);
     this.sun.position.set(6, 9, 5);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
@@ -104,21 +108,31 @@ export class Viewer {
    */
   applySun(state: SunState): void {
     const [x, y, z] = state.direction;
+    this.sunDirection.set(x, y, z);
     this.sun.position.set(x * SUN_DISTANCE, y * SUN_DISTANCE, z * SUN_DISTANCE);
     this.sun.target.position.set(0, 0, 0);
     this.sun.target.updateMatrixWorld();
 
+    // The sky itself carries the ambience, so it is driven by the same direction.
+    this.skyDome.update(this.sunDirection);
+
     const daylight = smoothstep(-1, 10, state.altitude);
     const twilight = smoothstep(-8, 3, state.altitude);
 
-    this.sun.intensity = 3.4 * daylight;
+    this.sun.intensity = SUN_INTENSITY * daylight;
     this.sun.castShadow = daylight > 0.01;
     this.sunColor.copy(LOW_SUN).lerp(HIGH_SUN, smoothstep(0, 22, state.altitude));
     this.sun.color.copy(this.sunColor);
 
-    this.backgroundColor.copy(NIGHT_SKY).lerp(DUSK_SKY, twilight).lerp(DAY_SKY, daylight);
-    this.sky.intensity = 0.18 + 1.0 * twilight;
-    this.scene.environmentIntensity = 0.05 + 0.45 * twilight;
+    // Only the distance haze still needs a colour of its own, to fade into the horizon.
+    this.hazeColor.copy(NIGHT_HAZE).lerp(DUSK_HAZE, twilight).lerp(DAY_HAZE, daylight);
+    this.haze.color.copy(this.hazeColor);
+    this.scene.environmentIntensity = 1;
+    this.renderer.toneMappingExposure = THREE.MathUtils.lerp(
+      EXPOSURE_AT_HORIZON,
+      EXPOSURE_AT_ZENITH,
+      smoothstep(-2, 50, state.altitude)
+    );
   }
 
   setSectionEnabled(enabled: boolean, offsetMillimetres: number): void {
@@ -145,6 +159,7 @@ export class Viewer {
     cancelAnimationFrame(this.animationHandle);
     window.removeEventListener('resize', this.handleResize);
     this.controls.dispose();
+    this.skyDome.dispose();
     this.renderer.dispose();
   }
 

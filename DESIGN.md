@@ -208,12 +208,32 @@ grossière, utile pour se faire une idée, pas pour commander.
 
 ## 9. Rendu
 
-Matériaux `MeshStandardMaterial` de couleur unie, éclairés par une lumière hémisphérique, un
-soleil directionnel avec ombres, et un environnement procédural (`RoomEnvironment`). **Aucune
-texture externe**, conformément au cahier des charges.
+Matériaux `MeshStandardMaterial`, éclairés par un soleil directionnel avec ombres et par une
+ambiance issue du ciel lui-même. **Aucune texture externe**, conformément au cahier des
+charges : tout ce qui n'est pas une couleur unie est dessiné par le code.
 
-Seule exception à la couleur unie : la couverture, dont la texture d'ardoise est **dessinée par
-le code** sur un canvas au démarrage — six rangs de cinq ardoises à coupe décalée, teinte tirée
+**Ciel physique.** La scène était éclairée par `RoomEnvironment`, un intérieur de studio — en
+extérieur, cela sonne faux quoi qu'on règle par ailleurs. Le ciel est maintenant un modèle
+atmosphérique de Preetham piloté par la position du soleil déjà calculée pour le site, et
+l'ambiance est préfiltrée depuis ce même ciel. Ciel, lumière directe et ambiance sont donc
+toujours d'accord entre eux. Deux maillages de ciel identiques coexistent, l'un visible dans
+la scène, l'autre seul dans une scène hors écran servant à cuire la carte d'environnement,
+un objet ne pouvant pas vivre dans deux scènes. La cuisson coûte quelques millisecondes et
+n'est refaite que lorsque le soleil a bougé de plus de 2°, ce qui est invisible sur une carte
+aussi floutée.
+
+**Exposition automatique.** Le ciel atmosphérique couvre une dynamique bien plus large qu'un
+écran : à exposition fixe, l'aube est noire et midi est brûlé. L'exposition suit donc le
+soleil comme le ferait un appareil photo, de 0,92 à l'horizon à 0,26 au zénith.
+
+**Veinage du bois.** Chaque pièce est une boîte dont les faces sont mappées de 0 à 1, et
+chaque latte fait environ 80 mm de large pour des longueurs métriques. Le veinage est donc
+dessiné en longues stries suivant U, la longueur de la pièce, et c'est sa densité suivant V
+que l'œil lit comme la largeur de la planche. L'étirement dans la longueur est exactement ce
+que fait le bois, si bien que le mapping ne demande aucun réglage pièce par pièce. Trois
+cartes en sortent : couleur, normale et rugosité.
+
+**Ardoise.** La texture de couverture est également **dessinée par le code** sur un canvas au démarrage — six rangs de cinq ardoises à coupe décalée, teinte tirée
 d'un générateur à graine fixe, dégradé sombre au joint haut et clair en partie basse. Une carte
 de normales est dérivée de la même image par gradient, ce qui donne du relief aux rangs sous la
 lumière rasante. Le pas de la texture est recalé sur les dimensions réelles du pan
