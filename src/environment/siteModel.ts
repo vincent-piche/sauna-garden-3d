@@ -200,10 +200,13 @@ export class SiteModel {
       this.decor.add(this.poolGroup);
     }
 
+    // Lands on the terrace to the left of the pool's own centreline, mirrored from it
+    // across the platform: the shrub placed near the right-hand corner already
+    // occupies that side (see treeSpecs), so the path takes the other one.
     const stonesPath = {
       fromX: sauna.platform.centerX,
       fromZ: sauna.platform.centerZ + sauna.platform.depth / 2,
-      toX: layout.centerX,
+      toX: sauna.platform.centerX - (layout.centerX - sauna.platform.centerX),
       toZ: layout.terrace.zMin,
       count: STEPPING_STONE_COUNT,
       groundAt: (x: number, z: number) => this.groundAt(x, z)
