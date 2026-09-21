@@ -1,0 +1,161 @@
+# Sauna Garden 3D
+
+Application web 3D **paramétrique** pour concevoir un sauna extérieur de jardin.
+Tout le modèle est généré par code à partir d'une configuration centralisée : aucune
+géométrie n'est importée, aucune texture externe n'est utilisée.
+
+- **TypeScript** + **Three.js** + **Vite**, sans framework d'interface.
+- Orientation du bâtiment : façade avant côté piscine (porte), façade arrière côté
+  jardin / vallée (baie panoramique), toit monopente descendant de l'avant vers l'arrière.
+
+---
+
+## Installation
+
+```bash
+npm install
+```
+
+## Lancement
+
+```bash
+npm run dev        # serveur de développement (http://localhost:5180)
+npm run build      # vérification TypeScript + build de production dans dist/
+npm run preview    # sert le build de production
+npm run typecheck  # vérification TypeScript seule
+```
+
+---
+
+## Architecture
+
+```
+src/
+├─ config/
+│  ├─ saunaConfig.ts        Configuration centrale : toutes les dimensions, en mm
+│  ├─ derivedGeometry.ts    Géométrie dérivée : couches de paroi, hauteurs, placements, contraintes
+│  └─ units.ts              Conversion mm -> unités Three.js (1 unité = 1 m)
+├─ materials/
+│  ├─ materialKeys.ts       Identifiants de matériaux (sans dépendance Three.js)
+│  └─ materialLibrary.ts    Matériaux simples, remplaçables un par un
+├─ geometry/
+│  ├─ woodPiece.ts          createWoodPiece() : la brique de base de tout le bois
+│  ├─ wallBuilder.ts        Construction d'une paroi multicouche avec ouvertures
+│  ├─ openingFrame.ts       Huisserie d'une ouverture (porte, baie)
+│  ├─ benchBuilder.ts       Banc à lattes générique
+│  ├─ rectangles.ts         Soustraction de rectangles, découpe en lames
+│  └─ layout.ts             Répartition régulière d'entraxes
+├─ components/             Un fichier par élément, indépendants les uns des autres
+│  ├─ Walls.ts             FrontFacade.ts      RearFacade.ts
+│  ├─ Door.ts              RearPanoramicWindow.ts
+│  ├─ Roof.ts              StructuralFrame.ts
+│  ├─ MainBench.ts         SecondaryBench.ts   SaunaStove.ts
+├─ model/
+│  ├─ saunaModel.ts         Assemblage, reconstruction, modes de visualisation
+│  ├─ buildContext.ts       Cache de géométries + registre du bois pour la nomenclature
+│  ├─ viewModes.ts          Règles de visibilité Finished / Structure / Interior / Section
+│  └─ tags.ts               Étiquettes de calque portées par chaque maillage
+├─ bom/
+│  └─ billOfMaterials.ts    generateBillOfMaterials() + export CSV
+├─ core/
+│  ├─ viewer.ts             Scène, caméra, lumières, ombres, plan de coupe
+│  └─ cameraViews.ts        Les 9 vues prédéfinies, calculées depuis les dimensions
+├─ ui/
+│  ├─ controlPanel.ts       Panneau de paramètres (déclaratif)
+│  ├─ bomView.ts            Tableau de nomenclature
+│  ├─ widgets.ts            Curseurs, groupes de boutons, helpers DOM
+│  └─ styles.css
+└─ main.ts                  Câblage : config -> modèle -> viewer -> interface
+```
+
+**Règle d'or** : aucune valeur dimensionnelle ne vit en dehors de `saunaConfig.ts`.
+Les composants lisent `ctx.config` (les valeurs demandées) et `ctx.geometry` (les valeurs
+calculées et validées), et convertissent en unités Three.js uniquement dans `createWoodPiece()`
+et `createPanel()`.
+
+---
+
+## Modifier les paramètres
+
+**Depuis l'interface** : chaque curseur du panneau de gauche modifie la configuration et
+déclenche une reconstruction complète du modèle, au plus une fois par frame. Sont réglables :
+largeur, profondeur, hauteur, pente et débord de toit, largeur/hauteur de la porte,
+largeur/hauteur/allège de la baie, longueur/profondeur/hauteur des deux bancs, puissance du
+poêle, épaisseur d'isolation et de lambris, module bois standard, position du plan de coupe,
+et le mode de construction (*Solid wood* / *Insulated wall*).
+
+**Depuis le code** : modifier `DEFAULT_SAUNA_CONFIG` dans
+[`src/config/saunaConfig.ts`](src/config/saunaConfig.ts).
+
+**Ajouter un paramètre** :
+
+1. Ajouter le champ à l'interface `SaunaConfig` et sa valeur dans `DEFAULT_SAUNA_CONFIG`.
+2. L'utiliser dans `deriveGeometry()` s'il demande un calcul ou une contrainte.
+3. Ajouter une entrée dans `FIELD_GROUPS` de [`src/ui/controlPanel.ts`](src/ui/controlPanel.ts).
+
+Aucun autre fichier n'a besoin d'être touché : le panneau est déclaratif.
+
+---
+
+## Génération du modèle
+
+```
+SaunaConfig  ──▶  deriveGeometry()  ──▶  BuildContext  ──▶  composants  ──▶  THREE.Group
+   (mm)            hauteurs, couches,       cache de          createWoodPiece()
+                   placements, warnings     géométries        createPanel()
+```
+
+`SaunaModel.build(config)` reconstruit tout : il libère le contexte précédent (et donc toutes
+les `BufferGeometry` allouées), dérive la géométrie, appelle chaque fabrique de composant dans
+l'ordre déclaré par la constante `COMPONENTS`, puis recalcule la nomenclature.
+
+**Ajouter un composant** : écrire `src/components/MonElement.ts` exportant
+`createMonElement(ctx: BuildContext): THREE.Group`, puis l'ajouter au tableau `COMPONENTS` de
+[`src/model/saunaModel.ts`](src/model/saunaModel.ts). Le composant est alors automatiquement
+pris en compte par les modes de visualisation (via son `tag`) et par la nomenclature (via
+`createWoodPiece`).
+
+**Modes de visualisation** : chaque maillage porte un `tag` (`structure`, `exteriorCladding`,
+`insulation`, `glazing`, `furniture`, `stove`…). Les modes ne manipulent que ces étiquettes :
+
+| Mode | Contenu |
+|---|---|
+| Finished | Tout le bâtiment, matériaux et vitrage |
+| Structure | Ossature bois et toiture seules (en mode bois massif, les parois sont l'ossature) |
+| Interior | Façade avant et porte masquées, caméra placée à l'intérieur |
+| Section | Plan de coupe déplaçable, pour lire la composition des parois |
+
+---
+
+## Génération de la nomenclature
+
+Toute pièce créée par `createWoodPiece()` est enregistrée automatiquement dans le registre du
+`BuildContext`, regroupée par *nom + section + longueur* (longueurs arrondies au cm supérieur,
+comme une liste de débit). `generateBillOfMaterials()` produit ensuite, pour chaque ligne :
+nom, section, longueur, quantité, longueur totale, et nombre de planches standard.
+
+Le panneau affiche le tableau, le total de pièces, la longueur totale, le nombre de planches
+standard de 2500 mm, la longueur achetée et une estimation des chutes. Le bouton
+**Exporter en CSV** télécharge la liste de débit.
+
+> Le calcul est volontairement simplifié : imbrication ligne par ligne dans une planche
+> standard, sans imbrication entre lignes ni trait de scie. Les pièces plus longues que la
+> planche standard sont signalées en jaune (aboutage nécessaire). Les sections qui ne
+> correspondent pas au module standard sont comptabilisées à part.
+
+---
+
+## Limites connues (V1)
+
+- Aucun calcul structurel, thermique, électrique ou réglementaire. Les sections de bois, les
+  distances de sécurité autour du poêle et les performances de la paroi isolée **ne sont pas
+  validées** : il s'agit d'une représentation architecturale.
+- La composition de paroi isolée est schématique (pas de lame d'air ventilée, pas de
+  traitement des ponts thermiques, pare-vapeur représenté en 4 mm pour rester visible).
+- Pas de plafond séparé : le dessous de toiture fait office de plafond.
+- Le poêle est un volume indicatif dont les dimensions varient légèrement avec la puissance ;
+  ce n'est pas un appareil réel.
+- L'optimisation de débit est une estimation, pas une optimisation.
+- Le bundle de production fait ~580 kB (Three.js non découpé).
+
+Les hypothèses géométriques et constructives détaillées sont dans [DESIGN.md](DESIGN.md).
