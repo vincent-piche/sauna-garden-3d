@@ -186,6 +186,7 @@ const FIELD_GROUPS: FieldGroup[] = [
     fields: [
       building('doorWidth', 'Porte – largeur', 500, 1200, 10),
       building('doorHeight', 'Porte – hauteur', 1400, 2400, 10),
+      building('doorOffsetX', 'Porte – décalage', -800, 800, 10),
       building('rearWindowWidth', 'Baie – largeur', 400, 3600, 10),
       building('rearWindowHeight', 'Baie – hauteur', 400, 2400, 10),
       building('rearWindowSillHeight', 'Baie – allège', 0, 1000, 10)

@@ -206,6 +206,13 @@ export function deriveGeometry(config: SaunaConfig): SaunaGeometry {
   if (doorWidth !== config.doorWidth || doorHeight !== config.doorHeight) {
     warnings.push(`Porte ajustée à ${Math.round(doorWidth)} × ${Math.round(doorHeight)} mm.`);
   }
+  const doorOffsetRange = Math.max(0, (maxOpeningWidth - doorWidth) / 2);
+  const doorCenter = clamp(config.doorOffsetX, -doorOffsetRange, doorOffsetRange);
+  if (doorCenter !== config.doorOffsetX) {
+    warnings.push(
+      `Décalage de la porte ramené à ${Math.round(doorCenter)} mm pour conserver ${config.minimumJambWidth} mm de jambage.`
+    );
+  }
 
   const windowWidth = clamp(config.rearWindowWidth, MIN_OPENING_SIZE, maxOpeningWidth);
   const maxWindowHeight = rearWallHeight - config.minimumHeadroom - MIN_SILL_HEIGHT;
@@ -327,7 +334,7 @@ export function deriveGeometry(config: SaunaConfig): SaunaGeometry {
     interiorXMax,
     interiorZMin,
     interiorZMax,
-    door: { width: doorWidth, height: doorHeight, sill: 0, center: 0 },
+    door: { width: doorWidth, height: doorHeight, sill: 0, center: doorCenter },
     window: { width: windowWidth, height: windowHeight, sill: windowSill, center: 0 },
     mainBench,
     secondaryBench,

@@ -122,10 +122,12 @@ Les deux menuiseries sont en **aluminium gris anthracite** (RAL 7016). Un profil
 modélisé comme un volume rectangulaire de 50 mm de large (paramétrable), traversant toute
 l'épaisseur de la paroi pour le dormant, et de 50 mm de profondeur pour l'ouvrant.
 
-- **Porte** : façade avant, centrée, 800 × 1920 mm par défaut. **Entièrement vitrée** : un
-  châssis aluminium (deux montants, deux traverses) enserrant un vitrage clair, le tout dans
-  un dormant aluminium de la même teinte. Modélisée **fermée**, avec une poignée barre.
-  Pas de seuil, pas de paumelles, pas de serrure modélisés.
+- **Porte** : façade avant, centrée par défaut (800 × 1920 mm), décalable latéralement via
+  un paramètre d'offset borné pour garder au moins le jambage minimal de chaque côté — au
+  delà, le décalage demandé est ramené à cette limite et un avertissement l'indique.
+  **Entièrement vitrée** : un châssis aluminium (deux montants, deux traverses) enserrant un
+  vitrage clair, le tout dans un dormant aluminium de la même teinte. Modélisée **fermée**,
+  avec une poignée barre. Pas de seuil, pas de paumelles, pas de serrure modélisés.
 - **Baie** : façade arrière, centrée, 1680 × 1000 mm sur une allège de 570 mm par défaut,
   **fixe**, dormant aluminium sur les quatre côtés, vitrage simple volume de 24 mm sans
   châssis ouvrant ni double vitrage modélisé.

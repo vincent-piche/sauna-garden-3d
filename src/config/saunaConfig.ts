@@ -23,6 +23,8 @@ export interface SaunaConfig {
   /** Front facade opening. */
   doorWidth: number;
   doorHeight: number;
+  /** Shift from the centre of the front facade, positive towards +X. */
+  doorOffsetX: number;
 
   /** Rear panoramic bay. */
   rearWindowWidth: number;
@@ -98,6 +100,7 @@ export const DEFAULT_SAUNA_CONFIG: SaunaConfig = {
 
   doorWidth: 800,
   doorHeight: 1920,
+  doorOffsetX: 0,
 
   rearWindowWidth: 1680,
   rearWindowHeight: 1000,
