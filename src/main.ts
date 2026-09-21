@@ -27,8 +27,7 @@ const canvas = document.querySelector<HTMLCanvasElement>('#viewport');
 const panelContainer = document.querySelector<HTMLElement>('#panel');
 const panelToggle = document.querySelector<HTMLButtonElement>('#panel-toggle');
 const panelBackdrop = document.querySelector<HTMLElement>('#panel-backdrop');
-const gestureToggle = document.querySelector<HTMLButtonElement>('#gesture-toggle');
-if (!canvas || !panelContainer || !panelToggle || !panelBackdrop || !gestureToggle) {
+if (!canvas || !panelContainer || !panelToggle || !panelBackdrop) {
   throw new Error('Le document ne contient pas les éléments attendus de la coque.');
 }
 
@@ -37,9 +36,7 @@ const viewer = new Viewer(canvas);
 const shell = setupAppShell({
   panel: panelContainer,
   toggle: panelToggle,
-  backdrop: panelBackdrop,
-  gestureButton: gestureToggle,
-  onGestureChange: (gesture) => viewer.setOneFingerGesture(gesture)
+  backdrop: panelBackdrop
 });
 const model = new SaunaModel(materials);
 const siteModel = new SiteModel(materials);

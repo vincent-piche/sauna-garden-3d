@@ -317,30 +317,11 @@ table.bom tr.spliced td {
   left: calc(12px + env(safe-area-inset-left));
 }
 
-.shell-button--gesture {
-  bottom: calc(14px + env(safe-area-inset-bottom));
-  right: calc(14px + env(safe-area-inset-right));
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
 .panel-backdrop {
   position: fixed;
   inset: 0;
   z-index: 24;
   background: rgba(0, 0, 0, 0.5);
-}
-
-/* A single finger panning instead of orbiting is worth flagging. */
-.shell-button--gesture[aria-pressed="true"] {
-  background: var(--accent-soft);
-}
-
-/* Touch devices get the gesture switch, whatever the screen width. */
-@media (pointer: coarse) {
-  .shell-button--gesture {
-    display: inline-flex;
-  }
 }
 
 @media (max-width: 860px) {

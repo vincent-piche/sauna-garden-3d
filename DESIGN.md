@@ -314,10 +314,14 @@ En portrait, le champ vertical de la caméra est élargi pour que le champ **hor
 constant : sans cela le sauna serait recadré sur un téléphone tenu debout.
 
 Gestes tactiles : le canvas porte `touch-action: none`, sans quoi le navigateur confisquerait
-les gestes avant que la scène ne les voie. Deux doigts font toujours le pincement pour zoomer
-et le déplacement. Un doigt fait tourner la vue par défaut ; un bouton flottant le bascule en
-déplacement, parce qu'un téléphone n'a pas de second bouton de souris et qu'aucun des deux
-comportements ne convient à lui seul.
+les gestes avant que la scène ne les voie. Un doigt fait tourner la vue, deux doigts la
+déplacent, l'écartement zoome. Le cas à deux doigts est résolu par le geste lui-même —
+l'écartement pilote le zoom, le milieu pilote le déplacement — donc les deux fonctionnent
+sans mode à choisir.
+
+Mesuré en rejouant de vrais événements de pointeur, l'inertie retombée entre chaque geste :
+un doigt ne produit que de la rotation, deux doigts parallèles que du déplacement (0,368 m,
+zoom et azimut strictement nuls), et l'écartement que du zoom.
 
 ## 12. Fichier de projet
 

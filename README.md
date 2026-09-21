@@ -126,9 +126,13 @@ lambris, profilé et vitrage des menuiseries, module bois standard, position du 
 et le mode de construction (*Solid wood* / *Insulated wall*).
 
 **Sur mobile** : sous 860 px de large, le panneau devient un tiroir masqué par défaut, ouvert
-par le bouton **Paramètres** et refermé dès qu'une vue est choisie. Toutes les interactions
-tactiles sont actives sur la scène : deux doigts pour le pincement et le déplacement, un doigt
-pour faire tourner la vue — le bouton **Orbite / Déplacer** bascule ce que fait un seul doigt.
+par le bouton **Paramètres** et refermé dès qu'une vue est choisie. Les gestes sur la scène :
+
+| Geste | Effet |
+|---|---|
+| Un doigt | fait tourner la vue autour du sauna |
+| Deux doigts | déplace la vue |
+| Écartement des doigts | zoome |
 
 **Depuis le code** : modifier `DEFAULT_SAUNA_CONFIG` dans
 [`src/config/saunaConfig.ts`](src/config/saunaConfig.ts).

@@ -72,7 +72,9 @@ export class Viewer {
     this.controls.dampingFactor = 0.08;
     this.controls.maxPolarAngle = Math.PI / 2 + 0.25;
     this.controls.target.set(0, 1, 0);
-    // One finger orbits by default, two fingers pinch to zoom and pan together.
+    // Touch mapping: one finger orbits, two fingers pan, pinching zooms. DOLLY_PAN
+    // resolves the two-finger case from the gesture itself — the separation drives the
+    // zoom, the midpoint drives the pan — so both work without a mode to choose.
     this.controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
 
     this.sky = new THREE.HemisphereLight(0xdfeaf2, 0x53603f, 1.1);
@@ -117,11 +119,6 @@ export class Viewer {
     this.backgroundColor.copy(NIGHT_SKY).lerp(DUSK_SKY, twilight).lerp(DAY_SKY, daylight);
     this.sky.intensity = 0.18 + 1.0 * twilight;
     this.scene.environmentIntensity = 0.05 + 0.45 * twilight;
-  }
-
-  /** Switches what a single finger does, since a phone has no second mouse button. */
-  setOneFingerGesture(gesture: 'orbit' | 'pan'): void {
-    this.controls.touches.ONE = gesture === 'pan' ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE;
   }
 
   setSectionEnabled(enabled: boolean, offsetMillimetres: number): void {
