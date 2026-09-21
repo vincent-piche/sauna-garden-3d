@@ -73,13 +73,41 @@ body {
   margin-bottom: 18px;
 }
 
-.section > h2 {
+.section > h2,
+.section > summary {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.09em;
   color: var(--text-muted);
   margin: 0 0 9px;
   font-weight: 600;
+}
+
+details.section > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+details.section > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.section > summary::before {
+  content: "\25B8";
+  font-size: 9px;
+  transition: transform 0.12s ease;
+}
+
+details.section[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+details.section > summary:hover {
+  color: var(--accent);
 }
 
 .field {

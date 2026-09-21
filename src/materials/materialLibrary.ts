@@ -35,7 +35,22 @@ export class MaterialLibrary {
       stoveStones: standard(0x6d6963, { roughness: 0.95, metalness: 0.0, flatShading: true }),
       insulation: standard(0xf0c96b, { roughness: 0.95, transparent: true, opacity: 0.6 }),
       vaporBarrier: standard(0x8fb3cc, { roughness: 0.4, transparent: true, opacity: 0.5 }),
-      ground: standard(0x6d7a58, { roughness: 1.0 })
+      // The terrain is shaded by vertex colours: lawn near the sauna, dry scrub on
+      // the slope, haze in the distance. White base so the colours come through.
+      terrain: standard(0xffffff, { roughness: 1.0, vertexColors: true, side: THREE.FrontSide }),
+      paving: standard(0xbdb2a1, { roughness: 0.92 }),
+      coping: standard(0xcdc4b3, { roughness: 0.85 }),
+      poolWater: standard(0x12a4bb, {
+        roughness: 0.06,
+        metalness: 0.0,
+        transparent: true,
+        opacity: 0.78
+      }),
+      poolPlaster: standard(0x9fdde4, { roughness: 0.7 }),
+      foliage: standard(0x4a6b36, { roughness: 0.95, flatShading: true }),
+      foliageDry: standard(0x5c6b45, { roughness: 0.95, flatShading: true }),
+      trunk: standard(0x5b4735, { roughness: 0.95 }),
+      sunMarker: new THREE.MeshBasicMaterial({ color: 0xffd98a })
     };
   }
 

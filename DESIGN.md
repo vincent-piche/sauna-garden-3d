@@ -186,11 +186,77 @@ pleines. Le plan de coupe est un `clippingPlane` global déplaçable le long de 
 géométrie sans reboucher les faces, ce qui reste lisible mais n'est pas une vraie coupe
 « remplie ».
 
-## 10. Fichier de projet
+## 10. Simulation d'environnement
 
-La configuration complète s'enregistre sur le disque en JSON (`sauna-config.json`), via la
-*File System Access API* quand le navigateur la propose, sinon par téléchargement. Le fichier
-porte un en-tête `format` / `version` / `savedAt` et l'objet `SaunaConfig` intégral.
+### 10.1 Soleil
+
+Position calculée avec les équations solaires **NOAA** : année fractionnaire, équation du
+temps, déclinaison, angle horaire, puis hauteur et azimut. Simplifications assumées : pas de
+réfraction atmosphérique au-delà de la correction d'horizon standard de −0,833°, et **aucune
+règle d'heure d'été** — le décalage UTC est un paramètre, à passer manuellement de 1 à 2.
+
+Le calcul a été vérifié pour Madrid contre des éphémérides publiées :
+
+| Contrôle | Calculé | Attendu |
+|---|---|---|
+| Lever / coucher, 21 juin (UTC+2) | 06:44 / 21:48 | ~06:44 / ~21:48 |
+| Lever / coucher, 21 décembre (UTC+1) | 08:34 / 17:51 | ~08:34 / ~17:51 |
+| Hauteur au midi solaire, 21 juin | 73,04° | 73,02° |
+| Hauteur au midi solaire, 21 décembre | 26,16° | 26,14° |
+| Azimut au lever, équinoxe | 89° E | ~90° E |
+
+### 10.2 Orientation
+
+Le modèle garde son repère local (−Z = baie arrière). Le paramètre `bayAzimuth` donne
+l'azimut géographique de cette direction : 135° (sud-est) par défaut, d'après la photo du
+terrain. La conversion d'une position solaire en direction dans le repère du modèle est
+donc une simple rotation autour de Y :
+
+```
+d = ( cos h · sin(A − A₀) ,  sin h ,  −cos h · cos(A − A₀) )
+```
+
+avec `A` l'azimut du soleil, `h` sa hauteur et `A₀ = bayAzimuth`.
+
+Conséquence pour ce terrain : la baie reçoit le soleil levant toute l'année, mais sous un
+angle très variable — 14° hors normale le 21 décembre (soleil presque de face), 47° aux
+équinoxes, 77° le 21 juin (lumière rasante sur le vitrage).
+
+### 10.3 Terrain
+
+Une seule surface continue, sur une grille dont le pas croît géométriquement (~70 cm près du
+sauna, ~15 m à 350 m) : le détail est là où on regarde, sans coût au loin, et sans raccord
+visible. Le profil est plat jusqu'au replat derrière le sauna, puis une décroissance
+exponentielle qui converge vers le dénivelé total, et deux crêtes gaussiennes qui remontent
+au loin pour fermer la vue. Les couleurs sont portées par les sommets : pelouse près du
+sauna, garrigue sèche sur la pente, brume au lointain.
+
+Les mailles entièrement contenues dans l'emprise de la terrasse sont supprimées, ce qui ouvre
+le trou dans lequel s'inscrivent le dallage et le bassin. Comme seules les mailles *entièrement*
+contenues sont retirées, le trou est toujours plus petit que la dalle qui le recouvre.
+
+### 10.4 Piscine et végétation
+
+Le bassin est un rectangle à angles très arrondis — la piscine réelle est libre, ce n'est pas
+son tracé. Il est composé d'une dalle percée, d'un anneau de parois, d'un fond et d'un plan
+d'eau translucide. Les arbres sont des cônes et des blobs : ils existent pour porter une ombre
+crédible et donner l'échelle, pas pour ressembler à une espèce.
+
+**Ce qui n'est pas simulé** : le relief réel au-delà du jardin, la maison et les constructions
+voisines, le feuillage saisonnier, la transparence partielle des houppiers, le ciel couvert,
+l'éclairement diffus calculé, et la réverbération de l'eau. Les dimensions du site sont des
+ordres de grandeur estimés d'après une photographie. **Ce n'est donc pas une étude
+d'ensoleillement** : c'est un outil pour juger une implantation.
+
+Le vitrage ne projette pas d'ombre, pour que la lumière traverse réellement la baie et la
+porte. La vue *Interior* ne retire plus la façade avant pour la même raison.
+
+## 11. Fichier de projet
+
+Le projet complet — le bâtiment (`SaunaConfig`) **et** son site (`SiteConfig`) — s'enregistre
+sur le disque en JSON (`sauna-projet.json`), via la *File System Access API* quand le
+navigateur la propose, sinon par téléchargement. Le fichier porte un en-tête
+`format` / `version` / `savedAt`.
 
 Hypothèses de relecture : le fichier est une **source non fiable**. Chaque clé attendue est
 relue individuellement, les clés inconnues sont ignorées, les types inattendus retombent sur
@@ -199,8 +265,8 @@ correspondant. Il n'existe donc pas de fichier capable de produire un modèle no
 constructible. La `version` n'est pas encore utilisée pour migrer : une future version du
 format devra décider quoi faire des fichiers de version 1.
 
-## 11. Ce que la V1 ne fait volontairement pas
+## 12. Ce que la V1 ne fait volontairement pas
 
 Réalité augmentée, photogrammétrie, génération d'images IA, calcul structurel, validation
-réglementaire, calcul thermique détaillé. La priorité a été mise sur une base paramétrique
+réglementaire, calcul thermique détaillé, étude d'ensoleillement normative. La priorité a été mise sur une base paramétrique
 propre et extensible.

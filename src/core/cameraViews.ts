@@ -10,6 +10,7 @@ export type ViewName =
   | 'left'
   | 'right'
   | 'top'
+  | 'site'
   | 'structure'
   | 'section';
 
@@ -21,6 +22,7 @@ export const VIEW_LABELS: Record<ViewName, string> = {
   left: 'Left',
   right: 'Right',
   top: 'Top',
+  site: 'Site',
   structure: 'Structure',
   section: 'Section'
 };
@@ -55,10 +57,11 @@ export function getViewPreset(view: ViewName, geometry: SaunaGeometry): ViewPres
         mode: 'section'
       };
     case 'interior':
+      // No visualisation mode here on purpose: the door is glazed, so the room is lit
+      // through its real openings. Removing the front facade would falsify the light.
       return {
         position: [0, 1200, depth / 2 - geometry.wallThickness - 250],
-        target: [0, geometry.window.sill + geometry.window.height / 2, -depth / 2],
-        mode: 'interior'
+        target: [0, geometry.window.sill + geometry.window.height / 2, -depth / 2]
       };
     case 'front':
       return { position: [0, frontWallHeight * 0.55, depth / 2 + distance * 2], target: center };
@@ -70,6 +73,13 @@ export function getViewPreset(view: ViewName, geometry: SaunaGeometry): ViewPres
       return { position: [width / 2 + distance * 2, frontWallHeight * 0.55, 0], target: center };
     case 'top':
       return { position: [0, frontWallHeight + distance * 2.2, 1], target: [0, 0, 0] };
+    case 'site':
+      // Pulled back and raised, roughly the point of view of the photograph:
+      // the pool in the foreground, the sauna behind it, the valley beyond.
+      return {
+        position: [distance * 1.2, frontWallHeight * 4, depth / 2 + distance * 7],
+        target: [0, 0, -depth / 2 - distance * 2]
+      };
     default:
       return { position: [distance * 1.5, frontWallHeight, distance * 1.75], target: center };
   }

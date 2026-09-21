@@ -57,8 +57,16 @@ src/
 │  └─ tags.ts               Étiquettes de calque portées par chaque maillage
 ├─ bom/
 │  └─ billOfMaterials.ts    generateBillOfMaterials() + export CSV
+├─ environment/            Simulation du site : soleil, terrain, piscine, végétation
+│  ├─ sun.ts               Position du soleil (NOAA), lever/coucher, formatage
+│  ├─ siteConfig.ts        Paramètres du site et du lieu
+│  ├─ terrain.ts           Terrain à pas progressif, pente et crêtes
+│  ├─ pool.ts              Bassin, margelle, dallage
+│  ├─ trees.ts             Arbres en volumes simples
+│  ├─ shapes.ts            Contours arrondis posés à plat
+│  └─ siteModel.ts         Assemblage du site et trajectoire solaire
 ├─ io/
-│  ├─ configFile.ts         Enregistrement / ouverture de la configuration en JSON
+│  ├─ configFile.ts         Enregistrement / ouverture du projet en JSON
 │  └─ download.ts           Téléchargement de secours
 ├─ core/
 │  ├─ viewer.ts             Scène, caméra, lumières, ombres, plan de coupe
@@ -107,18 +115,21 @@ La section **Projet** du panneau contient trois boutons :
 
 | Bouton | Effet |
 |---|---|
-| **Enregistrer…** | ouvre la boîte de dialogue native et écrit `sauna-config.json` à l'endroit choisi |
+| **Enregistrer…** | ouvre la boîte de dialogue native et écrit `sauna-projet.json` à l'endroit choisi |
 | **Ouvrir…** | relit un fichier et applique tous les paramètres d'un coup |
 | **Réinitialiser** | revient aux valeurs par défaut |
+
+Le fichier contient le bâtiment **et** son site : les deux sont restaurés ensemble.
 
 Le fichier est du JSON lisible et modifiable à la main :
 
 ```json
 {
   "format": "sauna-garden-3d",
-  "version": 1,
+  "version": 2,
   "savedAt": "2026-09-21T09:01:11.981Z",
-  "config": { "exteriorWidth": 2000, "exteriorDepth": 2500, "...": "..." }
+  "config": { "exteriorWidth": 2000, "exteriorDepth": 2500, "...": "..." },
+  "site":   { "latitude": 40.6, "bayAzimuth": 135, "poolLength": 9000, "...": "..." }
 }
 ```
 
@@ -131,6 +142,37 @@ est également accepté.
 Les navigateurs qui n'implémentent pas la *File System Access API* (Firefox, Safari)
 retombent automatiquement sur un téléchargement et sur un sélecteur de fichier classique ;
 le format du fichier est identique.
+
+---
+
+## Simulation d'environnement
+
+Le sauna est implanté à la place de la souche derrière la piscine : façade avant sur le
+bassin et les terrasses, baie arrière sur la vallée.
+
+**Héliodon.** La position du soleil est calculée avec les équations NOAA à partir du lieu,
+de la date et de l'heure. Les curseurs **Date** et **Heure** déplacent le soleil, la lumière
+et toutes les ombres portées en temps réel (0,13 ms par image : aucune géométrie n'est
+reconstruite). Le panneau affiche azimut, hauteur, lever, coucher et midi solaire.
+La couleur du ciel, l'intensité et la teinte du soleil sont graduées selon sa hauteur :
+rasante et chaude au ras de l'horizon, neutre au zénith, nuit quand il est couché.
+
+**Orientation.** Le modèle a une orientation locale fixe (−Z = baie arrière). Le paramètre
+**Orientation de la baie** indique à quel azimut géographique cette direction pointe
+réellement — 135° (sud-est) par défaut — ce qui suffit à faire tourner tout le ciel autour
+du bâtiment. Lieu par défaut : 40,6° N / 4,0° O, Sierra de Madrid, UTC+2.
+
+**Décor.** Terrain descendant vers la vallée puis remontant sur deux crêtes lointaines,
+piscine avec margelle et dallage, arbres. Tout est paramétrable : pente, replat derrière le
+sauna, dénivelé, distance et hauteur de crête, dimensions et position du bassin.
+
+**Masques solaires.** Le cèdre à droite, le rideau de cyprès à gauche et la haie arrière
+sont des volumes simples dont la hauteur et l'écartement se règlent, et qui projettent leurs
+ombres sur le sauna. Mettre la haie à 0 mm montre immédiatement ce qu'elle masque de la
+vallée depuis le banc.
+
+La vue **Site** cadre l'ensemble depuis la maison, la vue **Interior** place la caméra à
+l'intérieur face à la baie — sans retirer la façade avant, pour que la lumière reste juste.
 
 ---
 
@@ -193,6 +235,12 @@ standard de 2500 mm, la longueur achetée et une estimation des chutes. Le bouto
 - Le poêle est un volume indicatif dont les dimensions varient légèrement avec la puissance ;
   ce n'est pas un appareil réel.
 - L'optimisation de débit est une estimation, pas une optimisation.
+- **La simulation solaire n'est pas une étude d'ensoleillement.** La position du soleil est
+  exacte, mais la végétation est réduite à une dizaine de volumes, les masques lointains
+  (relief réel, maison, bâtiments voisins) sont absents, et il n'y a ni ciel couvert, ni
+  lumière indirecte calculée, ni changement d'heure automatique.
+- Le terrain et la piscine sont des ordres de grandeur estimés d'après une photo, à recaler
+  avec de vraies mesures.
 - Les menuiseries aluminium (porte, baie, huisseries) ne figurent pas dans la nomenclature,
   qui reste une liste de débit **bois**.
 - La plateforme est posée sans plots, sans fondation et sans ancrage modélisés.

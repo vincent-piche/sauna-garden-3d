@@ -1,16 +1,22 @@
 import { cloneConfig, DEFAULT_SAUNA_CONFIG, type SaunaConfig } from '../config/saunaConfig';
+import { cloneSiteConfig, DEFAULT_SITE_CONFIG, type SiteConfig } from '../environment/siteConfig';
 import { downloadTextFile } from './download';
 
-export const CONFIG_FILE_NAME = 'sauna-config.json';
+export const PROJECT_FILE_NAME = 'sauna-projet.json';
 const FILE_FORMAT = 'sauna-garden-3d';
-const FILE_VERSION = 1;
+const FILE_VERSION = 2;
 const MIME_TYPE = 'application/json';
 
-export interface SaunaConfigFile {
+/** Everything a project needs: the building and its site. */
+export interface SaunaProject {
+  config: SaunaConfig;
+  site: SiteConfig;
+}
+
+export interface SaunaProjectFile extends SaunaProject {
   format: typeof FILE_FORMAT;
   version: number;
   savedAt: string;
-  config: SaunaConfig;
 }
 
 export type SaveResult =
@@ -20,7 +26,7 @@ export type SaveResult =
   | { status: 'error'; message: string };
 
 export type LoadResult =
-  | { status: 'loaded'; config: SaunaConfig; filename: string }
+  | { status: 'loaded'; project: SaunaProject; filename: string }
   | { status: 'cancelled' }
   | { status: 'error'; message: string };
 
@@ -42,9 +48,12 @@ interface FilePickerApi {
   showOpenFilePicker?(options: unknown): Promise<OpenHandle[]>;
 }
 
-const PICKER_TYPES = [
-  { description: 'Configuration Sauna Garden 3D', accept: { [MIME_TYPE]: ['.json'] } }
-];
+const PICKER_TYPES = [{ description: 'Projet Sauna Garden 3D', accept: { [MIME_TYPE]: ['.json'] } }];
+
+/** String fields and the only values they are allowed to take. */
+const ALLOWED_STRINGS: Record<string, readonly string[]> = {
+  constructionMode: ['solidWood', 'insulated']
+};
 
 function filePickers(): FilePickerApi {
   return window as unknown as FilePickerApi;
@@ -58,69 +67,89 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function serializeConfig(config: SaunaConfig): string {
-  const payload: SaunaConfigFile = {
+export function serializeProject(project: SaunaProject): string {
+  const payload: SaunaProjectFile = {
     format: FILE_FORMAT,
     version: FILE_VERSION,
     savedAt: new Date().toISOString(),
-    config
+    config: project.config,
+    site: project.site
   };
   return `${JSON.stringify(payload, null, 2)}\n`;
 }
 
 /**
- * Reads a configuration file. Unknown keys are ignored and every missing or invalid
- * value falls back to the default, so a hand edited or outdated file can never
- * produce an unbuildable configuration.
+ * Rebuilds one configuration object from untrusted data: every expected key is read
+ * individually and type checked, anything else is dropped, and a missing or invalid
+ * value keeps its default. It is therefore impossible for a file to produce a
+ * configuration the model cannot build.
  */
-export function parseConfig(text: string): SaunaConfig {
+function sanitise<T extends object>(defaults: T, source: Record<string, unknown>): { value: T; recognised: number } {
+  const result = { ...defaults };
+  const target = result as unknown as Record<string, unknown>;
+  const reference = defaults as unknown as Record<string, unknown>;
+  let recognised = 0;
+
+  for (const key of Object.keys(reference)) {
+    const fallback = reference[key];
+    const value = source[key];
+
+    if (typeof fallback === 'number') {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        target[key] = value;
+        recognised += 1;
+      }
+    } else if (typeof fallback === 'boolean') {
+      if (typeof value === 'boolean') {
+        target[key] = value;
+        recognised += 1;
+      }
+    } else if (typeof fallback === 'string') {
+      if (typeof value === 'string' && ALLOWED_STRINGS[key]?.includes(value)) {
+        target[key] = value;
+        recognised += 1;
+      }
+    }
+  }
+
+  return { value: result, recognised };
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+}
+
+export function parseProject(text: string): SaunaProject {
   const payload = JSON.parse(text) as unknown;
   if (typeof payload !== 'object' || payload === null) {
     throw new Error('Le fichier ne contient pas un objet JSON.');
   }
-  const wrapper = payload as Partial<SaunaConfigFile> & Record<string, unknown>;
-  const source = (typeof wrapper.config === 'object' && wrapper.config !== null ? wrapper.config : wrapper) as Record<
-    string,
-    unknown
-  >;
+  const wrapper = asRecord(payload);
+  // A file without the format envelope is read as a flat set of parameters.
+  const configSource = 'config' in wrapper ? asRecord(wrapper.config) : wrapper;
+  const siteSource = 'site' in wrapper ? asRecord(wrapper.site) : wrapper;
 
-  const result = cloneConfig(DEFAULT_SAUNA_CONFIG);
-  const target = result as unknown as Record<string, unknown>;
-  let recognised = 0;
+  const config = sanitise(cloneConfig(DEFAULT_SAUNA_CONFIG), configSource);
+  const site = sanitise(cloneSiteConfig(DEFAULT_SITE_CONFIG), siteSource);
 
-  for (const key of Object.keys(DEFAULT_SAUNA_CONFIG)) {
-    const value = source[key];
-    if (key === 'constructionMode') {
-      if (value === 'solidWood' || value === 'insulated') {
-        target[key] = value;
-        recognised += 1;
-      }
-      continue;
-    }
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      target[key] = value;
-      recognised += 1;
-    }
+  if (config.recognised + site.recognised === 0) {
+    throw new Error("Aucun paramètre reconnu : ce fichier n'est pas un projet de sauna.");
   }
-
-  if (recognised === 0) {
-    throw new Error("Aucun paramètre reconnu : ce fichier n'est pas une configuration de sauna.");
-  }
-  return result;
+  return { config: config.value, site: site.value };
 }
 
-/** Writes the configuration to disk, falling back to a plain download. */
-export async function saveConfigToDisk(config: SaunaConfig): Promise<SaveResult> {
-  const text = serializeConfig(config);
+/** Writes the project to disk, falling back to a plain download. */
+export async function saveProjectToDisk(project: SaunaProject): Promise<SaveResult> {
+  const text = serializeProject(project);
   const api = filePickers();
 
   if (api.showSaveFilePicker) {
     try {
-      const handle = await api.showSaveFilePicker({ suggestedName: CONFIG_FILE_NAME, types: PICKER_TYPES });
+      const handle = await api.showSaveFilePicker({ suggestedName: PROJECT_FILE_NAME, types: PICKER_TYPES });
       const writable = await handle.createWritable();
       await writable.write(text);
       await writable.close();
-      return { status: 'saved', filename: handle.name ?? CONFIG_FILE_NAME };
+      return { status: 'saved', filename: handle.name ?? PROJECT_FILE_NAME };
     } catch (error) {
       if (isAbort(error)) {
         return { status: 'cancelled' };
@@ -129,12 +158,12 @@ export async function saveConfigToDisk(config: SaunaConfig): Promise<SaveResult>
     }
   }
 
-  downloadTextFile(CONFIG_FILE_NAME, text, MIME_TYPE);
-  return { status: 'downloaded', filename: CONFIG_FILE_NAME };
+  downloadTextFile(PROJECT_FILE_NAME, text, MIME_TYPE);
+  return { status: 'downloaded', filename: PROJECT_FILE_NAME };
 }
 
-/** Reads a configuration from disk, falling back to a hidden file input. */
-export async function loadConfigFromDisk(): Promise<LoadResult> {
+/** Reads a project from disk, falling back to a hidden file input. */
+export async function loadProjectFromDisk(): Promise<LoadResult> {
   const api = filePickers();
 
   if (api.showOpenFilePicker) {
@@ -144,7 +173,7 @@ export async function loadConfigFromDisk(): Promise<LoadResult> {
         return { status: 'cancelled' };
       }
       const file = await handle.getFile();
-      return { status: 'loaded', config: parseConfig(await file.text()), filename: file.name };
+      return { status: 'loaded', project: parseProject(await file.text()), filename: file.name };
     } catch (error) {
       if (isAbort(error)) {
         return { status: 'cancelled' };
@@ -171,7 +200,7 @@ function readWithFileInput(): Promise<LoadResult> {
       }
       file
         .text()
-        .then((text) => resolve({ status: 'loaded', config: parseConfig(text), filename: file.name }))
+        .then((text) => resolve({ status: 'loaded', project: parseProject(text), filename: file.name }))
         .catch((error: unknown) => resolve({ status: 'error', message: describe(error) }));
     });
 

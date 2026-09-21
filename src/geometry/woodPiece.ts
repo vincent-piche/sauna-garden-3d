@@ -82,7 +82,8 @@ export function createPanel(params: PanelParams, ctx: BuildContext): THREE.Mesh 
   mesh.position.set(mm(params.position[0]), mm(params.position[1]), mm(params.position[2]));
   mesh.name = params.name;
   mesh.userData.tag = params.tag;
-  mesh.castShadow = true;
+  // Glazing must let the sun through, otherwise the bay would darken the room it lights.
+  mesh.castShadow = params.tag !== 'glazing';
   mesh.receiveShadow = true;
   return mesh;
 }

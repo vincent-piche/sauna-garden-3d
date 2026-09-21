@@ -13,9 +13,22 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-export function createSection(parent: HTMLElement, title: string): HTMLElement {
-  const section = el('section', 'section');
-  section.append(el('h2', undefined, title));
+export interface SectionOptions {
+  /** Collapsible sections keep the long parameter list readable. */
+  collapsible?: boolean;
+  open?: boolean;
+}
+
+export function createSection(parent: HTMLElement, title: string, options: SectionOptions = {}): HTMLElement {
+  if (!options.collapsible) {
+    const section = el('section', 'section');
+    section.append(el('h2', undefined, title));
+    parent.append(section);
+    return section;
+  }
+  const section = el('details', 'section');
+  section.open = options.open ?? false;
+  section.append(el('summary', undefined, title));
   parent.append(section);
   return section;
 }
@@ -27,6 +40,8 @@ export interface SliderOptions {
   step: number;
   value: number;
   unit: string;
+  /** Replaces the default "value unit" readout, for dates and hours. */
+  format?(value: number): string;
   onInput(value: number): void;
 }
 
@@ -51,7 +66,7 @@ export function createSlider(parent: HTMLElement, options: SliderOptions): Slide
   input.value = String(options.value);
 
   const render = (current: number): void => {
-    value.textContent = `${formatNumber(current)} ${options.unit}`;
+    value.textContent = options.format ? options.format(current) : `${formatNumber(current)} ${options.unit}`;
   };
   render(options.value);
 
@@ -120,4 +135,40 @@ export function formatNumber(value: number): string {
 
 export function formatMetres(millimetres: number): string {
   return `${(millimetres / 1000).toFixed(2)} m`;
+}
+
+export interface ToggleHandle {
+  setValue(value: boolean): void;
+}
+
+/** Single on/off button, used for the display options of the site. */
+export function createToggle(
+  parent: HTMLElement,
+  label: string,
+  value: boolean,
+  onChange: (value: boolean) => void
+): ToggleHandle {
+  const button = el('button', undefined, label);
+  button.type = 'button';
+  let current = value;
+
+  const render = (): void => {
+    button.classList.toggle('active', current);
+    button.setAttribute('aria-pressed', String(current));
+  };
+  render();
+
+  button.addEventListener('click', () => {
+    current = !current;
+    render();
+    onChange(current);
+  });
+  parent.append(button);
+
+  return {
+    setValue(next: boolean): void {
+      current = next;
+      render();
+    }
+  };
 }

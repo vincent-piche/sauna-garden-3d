@@ -1,6 +1,18 @@
 import { cloneConfig, DEFAULT_SAUNA_CONFIG, type ConstructionMode, type SaunaConfig } from '../config/saunaConfig';
-import { loadConfigFromDisk, saveConfigToDisk } from '../io/configFile';
 import { VIEW_LABELS, type ViewName } from '../core/cameraViews';
+import {
+  cloneSiteConfig,
+  DEFAULT_SITE_CONFIG,
+  type SiteConfig
+} from '../environment/siteConfig';
+import {
+  formatAzimuth,
+  formatDayOfYear,
+  formatHour,
+  type SunPosition,
+  type SunTimes
+} from '../environment/sun';
+import { loadProjectFromDisk, saveProjectToDisk, type SaunaProject } from '../io/configFile';
 import type { SaunaModel } from '../model/saunaModel';
 import { VIEW_MODE_LABELS, type ViewMode } from '../model/viewModes';
 import { BomView } from './bomView';
@@ -8,122 +20,194 @@ import {
   createButtonRow,
   createSection,
   createSlider,
+  createToggle,
   el,
+  formatNumber,
   type ButtonRowHandle,
-  type SliderHandle
+  type SliderHandle,
+  type ToggleHandle
 } from './widgets';
 
-type NumericKey = {
+type SaunaNumericKey = {
   [K in keyof SaunaConfig]: SaunaConfig[K] extends number ? K : never;
 }[keyof SaunaConfig];
 
-interface NumericField {
-  key: NumericKey;
+type SiteNumericKey = {
+  [K in keyof SiteConfig]: SiteConfig[K] extends number ? K : never;
+}[keyof SiteConfig];
+
+interface FieldBase {
   label: string;
   min: number;
   max: number;
   step: number;
   unit: string;
+  /** Replaces the default readout, for dates, hours and bearings. */
+  format?(value: number): string;
   enabled?(config: SaunaConfig): boolean;
 }
 
+type NumericField =
+  | (FieldBase & { scope: 'sauna'; key: SaunaNumericKey })
+  | (FieldBase & { scope: 'site'; key: SiteNumericKey });
+
 interface FieldGroup {
   title: string;
+  open?: boolean;
   fields: NumericField[];
 }
 
 const isInsulated = (config: SaunaConfig): boolean => config.constructionMode === 'insulated';
 
+function building(
+  key: SaunaNumericKey,
+  label: string,
+  min: number,
+  max: number,
+  step: number,
+  unit = 'mm',
+  extra: Partial<FieldBase> = {}
+): NumericField {
+  return { scope: 'sauna', key, label, min, max, step, unit, ...extra };
+}
+
+function ground(
+  key: SiteNumericKey,
+  label: string,
+  min: number,
+  max: number,
+  step: number,
+  unit = 'mm',
+  extra: Partial<FieldBase> = {}
+): NumericField {
+  return { scope: 'site', key, label, min, max, step, unit, ...extra };
+}
+
 const FIELD_GROUPS: FieldGroup[] = [
   {
-    title: 'Volume extérieur',
+    title: 'Soleil',
+    open: true,
     fields: [
-      { key: 'exteriorWidth', label: 'Largeur', min: 1200, max: 4000, step: 10, unit: 'mm' },
-      { key: 'exteriorDepth', label: 'Profondeur', min: 1500, max: 5000, step: 10, unit: 'mm' },
-      { key: 'entranceHeight', label: 'Hauteur (avant)', min: 1800, max: 3000, step: 10, unit: 'mm' }
+      ground('dayOfYear', 'Date', 1, 365, 1, '', { format: formatDayOfYear }),
+      ground('hourOfDay', 'Heure', 0, 24, 0.25, '', { format: formatHour })
+    ]
+  },
+  {
+    title: 'Volume extérieur',
+    open: true,
+    fields: [
+      building('exteriorWidth', 'Largeur', 1200, 4000, 10),
+      building('exteriorDepth', 'Profondeur', 1500, 5000, 10),
+      building('entranceHeight', 'Hauteur (avant)', 1800, 3000, 10)
+    ]
+  },
+  {
+    title: 'Implantation',
+    open: true,
+    fields: [
+      ground('bayAzimuth', 'Orientation de la baie', 0, 359, 1, '°', { format: formatAzimuth }),
+      ground('latitude', 'Latitude', -60, 60, 0.1, '°'),
+      ground('longitude', 'Longitude', -180, 180, 0.1, '°'),
+      ground('utcOffset', 'Décalage UTC', -12, 14, 1, 'h')
     ]
   },
   {
     title: 'Plateforme',
     fields: [
-      { key: 'platformWidth', label: 'Largeur', min: 1500, max: 6000, step: 10, unit: 'mm' },
-      { key: 'platformDepth', label: 'Profondeur', min: 1500, max: 8000, step: 10, unit: 'mm' },
-      { key: 'platformHeight', label: 'Hauteur', min: 80, max: 800, step: 10, unit: 'mm' }
+      building('platformWidth', 'Largeur', 1500, 6000, 10),
+      building('platformDepth', 'Profondeur', 1500, 8000, 10),
+      building('platformHeight', 'Hauteur', 80, 800, 10)
     ]
   },
   {
     title: 'Toiture',
     fields: [
-      { key: 'roofSlope', label: 'Pente', min: 0, max: 25, step: 0.5, unit: '°' },
-      { key: 'roofOverhang', label: 'Débord', min: 0, max: 800, step: 10, unit: 'mm' }
+      building('roofSlope', 'Pente', 0, 25, 0.5, '°'),
+      building('roofOverhang', 'Débord', 0, 800, 10)
     ]
   },
   {
     title: 'Ouvertures',
     fields: [
-      { key: 'doorWidth', label: 'Porte – largeur', min: 500, max: 1200, step: 10, unit: 'mm' },
-      { key: 'doorHeight', label: 'Porte – hauteur', min: 1400, max: 2400, step: 10, unit: 'mm' },
-      { key: 'rearWindowWidth', label: 'Baie – largeur', min: 400, max: 3600, step: 10, unit: 'mm' },
-      { key: 'rearWindowHeight', label: 'Baie – hauteur', min: 400, max: 2400, step: 10, unit: 'mm' },
-      { key: 'rearWindowSillHeight', label: 'Baie – allège', min: 0, max: 1000, step: 10, unit: 'mm' }
+      building('doorWidth', 'Porte – largeur', 500, 1200, 10),
+      building('doorHeight', 'Porte – hauteur', 1400, 2400, 10),
+      building('rearWindowWidth', 'Baie – largeur', 400, 3600, 10),
+      building('rearWindowHeight', 'Baie – hauteur', 400, 2400, 10),
+      building('rearWindowSillHeight', 'Baie – allège', 0, 1000, 10)
     ]
   },
   {
     title: 'Bancs',
     fields: [
-      { key: 'mainBenchLength', label: 'Principal – longueur', min: 800, max: 4000, step: 10, unit: 'mm' },
-      { key: 'mainBenchDepth', label: 'Principal – profondeur', min: 300, max: 900, step: 10, unit: 'mm' },
-      { key: 'mainBenchHeight', label: 'Principal – hauteur', min: 400, max: 1400, step: 10, unit: 'mm' },
-      { key: 'secondaryBenchLength', label: 'Secondaire – longueur', min: 500, max: 3000, step: 10, unit: 'mm' },
-      { key: 'secondaryBenchDepth', label: 'Secondaire – profondeur', min: 300, max: 900, step: 10, unit: 'mm' },
-      { key: 'secondaryBenchHeight', label: 'Secondaire – hauteur', min: 300, max: 1000, step: 10, unit: 'mm' }
+      building('mainBenchLength', 'Principal – longueur', 800, 4000, 10),
+      building('mainBenchDepth', 'Principal – profondeur', 300, 900, 10),
+      building('mainBenchHeight', 'Principal – hauteur', 400, 1400, 10),
+      building('secondaryBenchLength', 'Secondaire – longueur', 500, 3000, 10),
+      building('secondaryBenchDepth', 'Secondaire – profondeur', 300, 900, 10),
+      building('secondaryBenchHeight', 'Secondaire – hauteur', 300, 1000, 10)
     ]
   },
   {
     title: 'Poêle',
-    fields: [{ key: 'stovePower', label: 'Puissance', min: 2000, max: 12000, step: 500, unit: 'W' }]
+    fields: [building('stovePower', 'Puissance', 2000, 12000, 500, 'W')]
   },
   {
     title: 'Paroi',
     fields: [
-      {
-        key: 'insulationThickness',
-        label: 'Isolation',
-        min: 40,
-        max: 240,
-        step: 10,
-        unit: 'mm',
-        enabled: isInsulated
-      },
-      {
-        key: 'interiorLiningThickness',
-        label: 'Lambris intérieur',
-        min: 10,
-        max: 40,
-        step: 1,
-        unit: 'mm',
-        enabled: isInsulated
-      }
+      building('insulationThickness', 'Isolation', 40, 240, 10, 'mm', { enabled: isInsulated }),
+      building('interiorLiningThickness', 'Lambris intérieur', 10, 40, 1, 'mm', { enabled: isInsulated })
     ]
   },
   {
     title: 'Menuiseries aluminium',
     fields: [
-      { key: 'frameProfileWidth', label: 'Largeur de profilé', min: 20, max: 120, step: 5, unit: 'mm' },
-      { key: 'glazingThickness', label: 'Épaisseur du vitrage', min: 6, max: 60, step: 2, unit: 'mm' }
+      building('frameProfileWidth', 'Largeur de profilé', 20, 120, 5),
+      building('glazingThickness', 'Épaisseur du vitrage', 6, 60, 2)
+    ]
+  },
+  {
+    title: 'Terrain',
+    fields: [
+      ground('gardenSlope', 'Pente vers la vallée', 0, 60, 1, '%'),
+      ground('slopeStart', 'Replat derrière le sauna', 0, 20000, 100),
+      ground('valleyDrop', 'Dénivelé total', 5000, 150000, 1000),
+      ground('ridgeDistance', 'Distance de la crête', 60000, 800000, 10000),
+      ground('ridgeHeight', 'Hauteur de la crête', 0, 120000, 1000)
+    ]
+  },
+  {
+    title: 'Piscine et terrasse',
+    fields: [
+      ground('poolLength', 'Bassin – longueur', 3000, 16000, 100),
+      ground('poolWidth', 'Bassin – largeur', 2000, 9000, 100),
+      ground('poolDistance', 'Distance au sauna', 500, 15000, 100),
+      ground('poolDepth', 'Profondeur', 600, 2500, 50),
+      ground('copingWidth', 'Margelle', 200, 900, 10),
+      ground('terraceMargin', 'Dallage autour', 0, 6000, 100)
+    ]
+  },
+  {
+    title: 'Végétation et masques',
+    fields: [
+      ground('cedarHeight', 'Cèdre – hauteur', 0, 30000, 500),
+      ground('cedarDistance', 'Cèdre – écartement', 2000, 25000, 500),
+      ground('cypressHeight', 'Cyprès – hauteur', 0, 25000, 500),
+      ground('cypressDistance', 'Cyprès – écartement', 2000, 25000, 500),
+      ground('hedgeHeight', 'Haie arrière – hauteur', 0, 4000, 100),
+      ground('hedgeDistance', 'Haie arrière – recul', 800, 12000, 100)
     ]
   },
   {
     title: 'Module bois',
     fields: [
-      { key: 'standardWoodLength', label: 'Longueur standard', min: 1500, max: 6000, step: 100, unit: 'mm' },
-      { key: 'standardWoodWidth', label: 'Largeur', min: 40, max: 200, step: 5, unit: 'mm' },
-      { key: 'standardWoodThickness', label: 'Épaisseur', min: 18, max: 80, step: 1, unit: 'mm' }
+      building('standardWoodLength', 'Longueur standard', 1500, 6000, 100),
+      building('standardWoodWidth', 'Largeur', 40, 200, 5),
+      building('standardWoodThickness', 'Épaisseur', 18, 80, 1)
     ]
   },
   {
     title: 'Coupe',
-    fields: [{ key: 'sectionOffset', label: 'Position du plan', min: -2500, max: 2500, step: 10, unit: 'mm' }]
+    fields: [building('sectionOffset', 'Position du plan', -2500, 2500, 10)]
   }
 ];
 
@@ -135,6 +219,7 @@ const VIEW_ORDER: ViewName[] = [
   'left',
   'right',
   'top',
+  'site',
   'structure',
   'section'
 ];
@@ -147,30 +232,38 @@ const CONSTRUCTION_MODES: Array<{ id: ConstructionMode; label: string }> = [
 ];
 
 export interface ControlPanelCallbacks {
-  onConfigChange(config: SaunaConfig, key: keyof SaunaConfig): void;
+  onSaunaChange(config: SaunaConfig, key: keyof SaunaConfig): void;
+  onSiteChange(site: SiteConfig, key: keyof SiteConfig): void;
+  onProjectLoaded(project: SaunaProject): void;
   onView(view: ViewName): void;
   onViewMode(mode: ViewMode): void;
 }
 
 export class ControlPanel {
-  private readonly sliders = new Map<NumericKey, SliderHandle>();
+  private readonly sliders = new Map<string, SliderHandle>();
   private readonly warningsBox = el('div', 'warnings');
   private readonly statusBox = el('div', 'status');
+  private readonly sunReadout = el('div', 'summary-grid');
   private readonly bomView: BomView;
   private readonly viewModeRow: ButtonRowHandle<ViewMode>;
   private readonly constructionRow: ButtonRowHandle<ConstructionMode>;
+  private readonly sunPathToggle: ToggleHandle;
+  private readonly decorToggle: ToggleHandle;
+
   private config: SaunaConfig;
+  private site: SiteConfig;
 
   constructor(
     container: HTMLElement,
-    initialConfig: SaunaConfig,
+    project: SaunaProject,
     private readonly callbacks: ControlPanelCallbacks
   ) {
-    this.config = cloneConfig(initialConfig);
+    this.config = cloneConfig(project.config);
+    this.site = cloneSiteConfig(project.site);
 
     container.append(el('h1', 'app-title', 'Sauna Garden 3D'));
     container.append(
-      el('p', 'app-subtitle', 'Modèle paramétrique — façade avant côté piscine, baie arrière côté vallée.')
+      el('p', 'app-subtitle', 'Modèle paramétrique — façade avant côté piscine, baie arrière sur la vallée.')
     );
 
     const viewSection = createSection(container, 'Vues');
@@ -187,12 +280,22 @@ export class ControlPanel {
       (mode) => this.callbacks.onViewMode(mode)
     );
 
+    const displaySection = createSection(container, 'Environnement');
+    const displayRow = el('div', 'button-row');
+    this.sunPathToggle = createToggle(displayRow, 'Trajectoire du soleil', this.site.showSunPath, (value) =>
+      this.setSiteValue('showSunPath', value)
+    );
+    this.decorToggle = createToggle(displayRow, 'Décor du jardin', this.site.showDecor, (value) =>
+      this.setSiteValue('showDecor', value)
+    );
+    displaySection.append(displayRow, this.sunReadout);
+
     const constructionSection = createSection(container, 'Mode de construction');
     this.constructionRow = createButtonRow(constructionSection, CONSTRUCTION_MODES, (mode) => {
       this.config = { ...this.config, constructionMode: mode };
       this.constructionRow.setActive(mode);
       this.refreshEnabledState();
-      this.callbacks.onConfigChange(this.config, 'constructionMode');
+      this.callbacks.onSaunaChange(this.config, 'constructionMode');
     });
     this.constructionRow.setActive(this.config.constructionMode);
 
@@ -200,21 +303,9 @@ export class ControlPanel {
     container.append(this.warningsBox);
 
     for (const group of FIELD_GROUPS) {
-      const section = createSection(container, group.title);
+      const section = createSection(container, group.title, { collapsible: true, open: group.open ?? false });
       for (const field of group.fields) {
-        const handle = createSlider(section, {
-          label: field.label,
-          min: field.min,
-          max: field.max,
-          step: field.step,
-          unit: field.unit,
-          value: this.config[field.key],
-          onInput: (value) => {
-            this.config = { ...this.config, [field.key]: value };
-            this.callbacks.onConfigChange(this.config, field.key);
-          }
-        });
-        this.sliders.set(field.key, handle);
+        this.addSlider(section, field);
       }
     }
 
@@ -248,21 +339,84 @@ export class ControlPanel {
     }
   }
 
+  /** Readout of the current solar situation. */
+  updateSun(position: SunPosition, times: SunTimes): void {
+    const rows: Array<[string, string]> = [
+      ['Azimut du soleil', formatAzimuth(position.azimuth)],
+      ['Hauteur', `${formatNumber(position.altitude)} °`],
+      ['Lever', formatHour(times.sunrise)],
+      ['Coucher', formatHour(times.sunset)],
+      ['Midi solaire', formatHour(times.solarNoon)],
+      ['Baie orientée vers', formatAzimuth(this.site.bayAzimuth)]
+    ];
+    this.sunReadout.replaceChildren();
+    for (const [key, value] of rows) {
+      this.sunReadout.append(el('span', 'key', key), el('span', 'value', value));
+    }
+    if (position.altitude <= 0) {
+      this.sunReadout.append(el('span', 'key', 'Le soleil'), el('span', 'value', 'est sous l’horizon'));
+    }
+  }
+
   setViewMode(mode: ViewMode): void {
     this.viewModeRow.setActive(mode);
   }
 
   /** Replaces every parameter at once, for instance after loading a file. */
-  applyConfig(config: SaunaConfig): void {
-    this.config = cloneConfig(config);
-    const target = this.config as unknown as Record<string, number>;
-    for (const [key, handle] of this.sliders) {
-      // The slider clamps to its own range, and the configuration follows it.
-      target[key] = handle.setValue(this.config[key]);
+  applyProject(project: SaunaProject): void {
+    this.config = cloneConfig(project.config);
+    this.site = cloneSiteConfig(project.site);
+
+    const saunaTarget = this.config as unknown as Record<string, number>;
+    const siteTarget = this.site as unknown as Record<string, number>;
+    for (const group of FIELD_GROUPS) {
+      for (const field of group.fields) {
+        const handle = this.sliders.get(`${field.scope}.${field.key}`);
+        if (!handle) {
+          continue;
+        }
+        // The slider clamps to its own range, and the configuration follows it.
+        if (field.scope === 'sauna') {
+          saunaTarget[field.key] = handle.setValue(this.config[field.key]);
+        } else {
+          siteTarget[field.key] = handle.setValue(this.site[field.key]);
+        }
+      }
     }
+
     this.constructionRow.setActive(this.config.constructionMode);
+    this.sunPathToggle.setValue(this.site.showSunPath);
+    this.decorToggle.setValue(this.site.showDecor);
     this.refreshEnabledState();
-    this.callbacks.onConfigChange(this.config, 'constructionMode');
+    this.callbacks.onProjectLoaded({ config: this.config, site: this.site });
+  }
+
+  private addSlider(section: HTMLElement, field: NumericField): void {
+    const current = field.scope === 'sauna' ? this.config[field.key] : this.site[field.key];
+    const handle = createSlider(section, {
+      label: field.label,
+      min: field.min,
+      max: field.max,
+      step: field.step,
+      unit: field.unit,
+      value: current,
+      format: field.format,
+      onInput: (value) => {
+        if (field.scope === 'sauna') {
+          this.config = { ...this.config, [field.key]: value };
+          this.callbacks.onSaunaChange(this.config, field.key);
+        } else {
+          this.site = { ...this.site, [field.key]: value };
+          this.callbacks.onSiteChange(this.site, field.key);
+        }
+      }
+    });
+    this.sliders.set(`${field.scope}.${field.key}`, handle);
+  }
+
+  private setSiteValue(key: 'showSunPath' | 'showDecor', value: boolean): void {
+    this.site = { ...this.site, [key]: value };
+    this.callbacks.onSiteChange(this.site, key);
   }
 
   private actionButton(label: string, onClick: () => void): HTMLButtonElement {
@@ -279,13 +433,13 @@ export class ControlPanel {
   }
 
   private async save(): Promise<void> {
-    const result = await saveConfigToDisk(this.config);
+    const result = await saveProjectToDisk({ config: this.config, site: this.site });
     switch (result.status) {
       case 'saved':
-        this.setStatus(`Configuration enregistrée dans ${result.filename}.`, 'info');
+        this.setStatus(`Projet enregistré dans ${result.filename}.`, 'info');
         break;
       case 'downloaded':
-        this.setStatus(`Configuration téléchargée sous ${result.filename}.`, 'info');
+        this.setStatus(`Projet téléchargé sous ${result.filename}.`, 'info');
         break;
       case 'cancelled':
         this.setStatus('Enregistrement annulé.', 'info');
@@ -296,11 +450,11 @@ export class ControlPanel {
   }
 
   private async load(): Promise<void> {
-    const result = await loadConfigFromDisk();
+    const result = await loadProjectFromDisk();
     switch (result.status) {
       case 'loaded':
-        this.applyConfig(result.config);
-        this.setStatus(`Configuration chargée depuis ${result.filename}.`, 'info');
+        this.applyProject(result.project);
+        this.setStatus(`Projet chargé depuis ${result.filename}.`, 'info');
         break;
       case 'cancelled':
         this.setStatus('Ouverture annulée.', 'info');
@@ -311,14 +465,14 @@ export class ControlPanel {
   }
 
   private reset(): void {
-    this.applyConfig(DEFAULT_SAUNA_CONFIG);
+    this.applyProject({ config: DEFAULT_SAUNA_CONFIG, site: DEFAULT_SITE_CONFIG });
     this.setStatus('Paramètres réinitialisés.', 'info');
   }
 
   private refreshEnabledState(): void {
     for (const group of FIELD_GROUPS) {
       for (const field of group.fields) {
-        const handle = this.sliders.get(field.key);
+        const handle = this.sliders.get(`${field.scope}.${field.key}`);
         handle?.setEnabled(field.enabled ? field.enabled(this.config) : true);
       }
     }

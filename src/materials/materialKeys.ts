@@ -10,4 +10,12 @@ export type MaterialKey =
   | 'stoveStones'
   | 'insulation'
   | 'vaporBarrier'
-  | 'ground';
+  | 'terrain'
+  | 'paving'
+  | 'coping'
+  | 'poolWater'
+  | 'poolPlaster'
+  | 'foliage'
+  | 'foliageDry'
+  | 'trunk'
+  | 'sunMarker';
