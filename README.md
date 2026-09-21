@@ -37,7 +37,8 @@ src/
 │  └─ units.ts              Conversion mm -> unités Three.js (1 unité = 1 m)
 ├─ materials/
 │  ├─ materialKeys.ts       Identifiants de matériaux (sans dépendance Three.js)
-│  └─ materialLibrary.ts    Matériaux simples, remplaçables un par un
+│  ├─ materialLibrary.ts    Matériaux simples, nuances de bois, échelle des ardoises
+│  └─ slateTexture.ts       Texture d'ardoise et carte de normales dessinées par le code
 ├─ geometry/
 │  ├─ woodPiece.ts          createWoodPiece() : la brique de base de tout le bois
 │  ├─ wallBuilder.ts        Construction d'une paroi multicouche avec ouvertures
@@ -163,8 +164,13 @@ réellement — 135° (sud-est) par défaut — ce qui suffit à faire tourner t
 du bâtiment. Lieu par défaut : 40,6° N / 4,0° O, Sierra de Madrid, UTC+2.
 
 **Décor.** Terrain descendant vers la vallée puis remontant sur deux crêtes lointaines,
-piscine avec margelle et dallage, arbres. Tout est paramétrable : pente, replat derrière le
-sauna, dénivelé, distance et hauteur de crête, dimensions et position du bassin.
+piscine à contour libre approché d'après la photo, margelle, dallage et arbres. Tout est
+paramétrable : pente, replat derrière le sauna, dénivelé, distance et hauteur de crête,
+dimensions du bassin.
+
+**Implantation.** Le curseur **Décalage du sauna** place la piscine par rapport au bâtiment :
+à 1500 mm, vu depuis la piscine face à la porte, le sauna est décalé de 1,50 m sur la gauche,
+du côté des quatre cyprès.
 
 **Masques solaires.** Le cèdre à droite, le rideau de cyprès à gauche et la haie arrière
 sont des volumes simples dont la hauteur et l'écartement se règlent, et qui projettent leurs
@@ -243,6 +249,9 @@ standard de 2500 mm, la longueur achetée et une estimation des chutes. Le bouto
   avec de vraies mesures.
 - Les menuiseries aluminium (porte, baie, huisseries) ne figurent pas dans la nomenclature,
   qui reste une liste de débit **bois**.
+- L'isolation de toiture est un remplissage indifférencié entre chevrons : le modèle ne
+  distingue pas mousse polyuréthane et laine de roche, et ne calcule aucune performance.
+- Le contour de la piscine est une ressemblance tracée d'après une photo, pas un relevé.
 - La plateforme est posée sans plots, sans fondation et sans ancrage modélisés.
 - Le bundle de production fait ~580 kB (Three.js non découpé).
 

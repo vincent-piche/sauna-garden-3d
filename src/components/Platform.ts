@@ -28,7 +28,7 @@ export function createPlatform(ctx: BuildContext): THREE.Group {
   const zMin = platform.centerZ - platform.depth / 2;
   const zMax = platform.centerZ + platform.depth / 2;
 
-  for (const strip of splitIntoStrips(zMin, zMax, config.standardWoodWidth)) {
+  for (const [index, strip] of splitIntoStrips(zMin, zMax, config.standardWoodWidth).entries()) {
     group.add(
       createWoodPiece(
         {
@@ -39,7 +39,8 @@ export function createPlatform(ctx: BuildContext): THREE.Group {
           position: [platform.centerX, deckTop - deckThickness / 2, (strip.u0 + strip.u1) / 2],
           rotation: ORIENTATION.flatAlongX,
           material: 'pineExterior',
-          tag: 'structure'
+          tag: 'structure',
+          variant: index
         },
         ctx
       )

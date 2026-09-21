@@ -30,6 +30,13 @@ Le module principal est **2500 × 80 × 40 mm**. Une pièce est modélisée dans
 nommées de `ORIENTATION` (à plat, sur chant, debout). Ces six rotations ont été vérifiées
 numériquement contre l'ordre d'Euler `XYZ` de Three.js.
 
+Chaque latte est modélisée individuellement, pas simulée par une texture. Pour qu'elles se
+lisent au lieu de former un panneau plat, deux choses les distinguent : une teinte prise dans
+une palette de six nuances de pin, et quelques dixièmes de millimètre de relief ajoutés à
+l'épaisseur *dessinée*, en cycle d'une latte à la suivante. La pièce restant centrée sur sa
+couche, elle dépasse des deux côtés : les joints accrochent la lumière à l'intérieur comme à
+l'extérieur. **L'épaisseur commandée, elle, ne change pas** : la nomenclature reste juste.
+
 Les éléments qui **ne** peuvent pas utiliser le module, et pourquoi :
 
 | Élément | Section | Raison |
@@ -76,12 +83,26 @@ hauteur arrière      =  entranceHeight − profondeur × tan(pente)
 ```
 
 La toiture est construite dans un groupe incliné dont le plan `Y = 0` local coïncide
-exactement avec le haut des murs. Composition, de bas en haut : chevrons de 80 mm posés sur
-chant dans le sens de la pente, voliges à plat, puis une dalle d'ardoise de 10 mm représentée
-par un seul volume de matériau « ardoise ».
+exactement avec le haut des murs. C'est un **caisson isolé plein**, et non une coque creuse.
+Composition, de bas en haut :
+
+| Couche | Épaisseur par défaut | Étiquette |
+|---|---|---|
+| Lambris de sous-face | 20 mm | `interiorLining` |
+| Chevrons sur chant, entraxe 600 mm | 80 mm | `roofStructure` |
+| Isolation remplissant chaque caisson entre chevrons | 80 mm | `insulation` |
+| Voliges à plat | 40 mm | `roofStructure` |
+| Ardoises | 10 mm | `roofCover` |
+
+Le lambris ferme la sous-face, l'isolation remplit les caissons, et deux planches de rive
+ferment les about de caissons en haut et en bas de la pente. Les chevrons restent lisibles
+depuis l'intérieur et sont ce qui subsiste en vue *Structure*. La hauteur de chevron est
+réglable : c'est elle qui fixe l'épaisseur d'isolant, l'isolation étant représentée comme un
+remplissage indifférencié (mousse polyuréthane ou laine de roche, le modèle ne tranche pas).
 
 Hypothèses : pas de pannes ni de contreventement, pas de gouttière, pas d'écran
-sous-toiture, pas de fixation modélisée, aucun calcul de charge (neige, vent) ni de portée.
+sous-toiture, pas de lame d'air ventilée sous les ardoises, pas de fixation modélisée, aucun
+calcul de charge (neige, vent) ni de portée.
 Les voliges dépassent la longueur standard dès que la largeur + débords dépasse 2500 mm ; la
 nomenclature les signale comme nécessitant un aboutage.
 
@@ -178,8 +199,15 @@ grossière, utile pour se faire une idée, pas pour commander.
 ## 9. Rendu
 
 Matériaux `MeshStandardMaterial` de couleur unie, éclairés par une lumière hémisphérique, un
-soleil directionnel avec ombres, et un environnement procédural (`RoomEnvironment`). Aucune
-texture externe, conformément au cahier des charges de la V1.
+soleil directionnel avec ombres, et un environnement procédural (`RoomEnvironment`). **Aucune
+texture externe**, conformément au cahier des charges.
+
+Seule exception à la couleur unie : la couverture, dont la texture d'ardoise est **dessinée par
+le code** sur un canvas au démarrage — six rangs de cinq ardoises à coupe décalée, teinte tirée
+d'un générateur à graine fixe, dégradé sombre au joint haut et clair en partie basse. Une carte
+de normales est dérivée de la même image par gradient, ce qui donne du relief aux rangs sous la
+lumière rasante. Le pas de la texture est recalé sur les dimensions réelles du pan
+(`setSlateScale`), pour que les ardoises gardent 300 × 180 mm quelle que soit la taille du toit.
 
 Tous les matériaux sont en `DoubleSide` afin que le mode *Section* montre des tranches
 pleines. Le plan de coupe est un `clippingPlane` global déplaçable le long de X ; il coupe la
@@ -237,10 +265,25 @@ contenues sont retirées, le trou est toujours plus petit que la dalle qui le re
 
 ### 10.4 Piscine et végétation
 
-Le bassin est un rectangle à angles très arrondis — la piscine réelle est libre, ce n'est pas
-son tracé. Il est composé d'une dalle percée, d'un anneau de parois, d'un fond et d'un plan
-d'eau translucide. Les arbres sont des cônes et des blobs : ils existent pour porter une ombre
+Le bassin suit un **contour libre**, approché d'après la photographie : une spline fermée
+passant par quinze points de contrôle normalisés — plus étroit du côté de l'échelle, s'élargissant
+en une boucle arrondie à l'autre extrémité, avec un décrochement du côté du sauna. Les points
+étant normalisés, la forme se met à l'échelle avec la longueur et la largeur réglées. Ce n'est
+pas un relevé : c'est une ressemblance.
+
+La margelle et les parois du bassin sont obtenues en décalant ce contour le long de ses
+normales. Ce décalage est volontairement simple et se replierait sur un angle rentrant marqué ;
+il tient pour les valeurs en jeu (450 mm de margelle sur un bassin de 9 m), pas pour n'importe
+quelle forme.
+
+Le bassin est composé d'une dalle percée, d'un anneau de parois, d'un fond et d'un plan d'eau
+translucide. Les arbres sont des cônes et des blobs : ils existent pour porter une ombre
 crédible et donner l'échelle, pas pour ressembler à une espèce.
+
+**Implantation.** Le sauna reste à l'origine du modèle ; c'est la piscine qui porte le décalage.
+`poolOffsetX` vaut 1500 mm par défaut : vu depuis la piscine, face à la porte, le sauna est donc
+**décalé de 1,50 m sur la gauche**, du côté des quatre cyprès. Les écartements du cèdre et des
+cyprès ont été repris en conséquence (8,5 m et 4,5 m au lieu de 7 m et 6 m).
 
 **Ce qui n'est pas simulé** : le relief réel au-delà du jardin, la maison et les constructions
 voisines, le feuillage saisonnier, la transparence partielle des houppiers, le ciel couvert,

@@ -4,6 +4,14 @@ import type { BuildContext } from '../model/buildContext';
 import { splitIntoStrips, subtractRects, type Rect } from './rectangles';
 import { createPanel, createWoodPiece, ORIENTATION } from './woodPiece';
 
+/**
+ * Fractions of a millimetre added to the drawn thickness of a batten, cycling from one
+ * board to the next. The piece stays centred on its layer, so it stands a few tenths of
+ * a millimetre proud on both faces: enough for the joints between battens to catch the
+ * light, on the inside as well as the outside. The ordered thickness is unchanged.
+ */
+const BATTEN_RELIEF = [0, 1.6, 0.6, 2, 1];
+
 export interface WallDefinition {
   id: string;
   label: string;
@@ -35,7 +43,7 @@ export function buildWall(def: WallDefinition, layers: readonly WallLayer[], ctx
     const layerCenter = def.outerFace + def.inward * (layer.offset + layer.thickness / 2);
     const strips = splitIntoStrips(def.uStart, def.uEnd, layer.stripWidth);
 
-    for (const strip of strips) {
+    for (const [index, strip] of strips.entries()) {
       const stripMiddle = (strip.u0 + strip.u1) / 2;
       const fullStrip: Rect = { u0: strip.u0, u1: strip.u1, v0: 0, v1: def.heightAt(stripMiddle) };
 
@@ -58,7 +66,9 @@ export function buildWall(def: WallDefinition, layers: readonly WallLayer[], ctx
                 position,
                 rotation: def.normalAxis === 'z' ? ORIENTATION.uprightFacingZ : ORIENTATION.uprightFacingX,
                 material: layer.material,
-                tag: layer.tag
+                tag: layer.tag,
+                renderThickness: layer.thickness + BATTEN_RELIEF[index % BATTEN_RELIEF.length],
+                variant: index
               },
               ctx
             )

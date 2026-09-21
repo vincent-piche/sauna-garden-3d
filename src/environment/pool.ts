@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { mm } from '../config/units';
 import type { MaterialLibrary } from '../materials/materialLibrary';
-import { layFlat, roundedRect } from './shapes';
+import { layFlat, offsetPolygon, poolOutline, roundedRect } from './shapes';
 
 export interface PoolLayout {
+  centerX: number;
   centerZ: number;
   /** Along X. */
   length: number;
@@ -21,7 +22,6 @@ const DECK_THICKNESS = 400;
 const BASIN_WALL = 120;
 const WATER_DROP = 130;
 const COPING_LIFT = 4;
-const CORNER_RATIO = 0.32;
 
 /**
  * In-ground pool and its paved surround.
@@ -38,22 +38,12 @@ export function buildPool(
   const group = new THREE.Group();
   group.name = 'Pool';
 
-  const radius = Math.min(layout.length, layout.width) * CORNER_RATIO;
-  const outline = roundedRect(0, layout.centerZ, layout.length, layout.width, radius);
-  const inner = roundedRect(
-    0,
-    layout.centerZ,
-    layout.length - 2 * BASIN_WALL,
-    layout.width - 2 * BASIN_WALL,
-    Math.max(0, radius - BASIN_WALL)
-  );
-  const copingOutline = roundedRect(
-    0,
-    layout.centerZ,
-    layout.length + 2 * layout.copingWidth,
-    layout.width + 2 * layout.copingWidth,
-    radius + layout.copingWidth
-  );
+  const outlinePoints = poolOutline(layout.centerX, layout.centerZ, layout.length, layout.width);
+  const innerPoints = offsetPolygon(outlinePoints, -BASIN_WALL);
+  const copingPoints = offsetPolygon(outlinePoints, layout.copingWidth);
+
+  const inner = new THREE.Shape(innerPoints);
+  const copingOutline = new THREE.Shape(copingPoints);
 
   const add = (geometry: THREE.BufferGeometry, material: THREE.Material, y: number, name: string): void => {
     collect(geometry);
@@ -73,7 +63,7 @@ export function buildPool(
     layout.terrace.zMax - layout.terrace.zMin,
     600
   );
-  terraceShape.holes.push(new THREE.Path(outline.getPoints(28)));
+  terraceShape.holes.push(new THREE.Path(outlinePoints));
   const deck = layFlat(
     new THREE.ExtrudeGeometry(terraceShape, { depth: DECK_THICKNESS, bevelEnabled: false })
   );
@@ -81,12 +71,12 @@ export function buildPool(
 
   // Coping ring, sitting on the paving.
   const copingShape = copingOutline;
-  copingShape.holes.push(new THREE.Path(outline.getPoints(28)));
+  copingShape.holes.push(new THREE.Path(outlinePoints));
   add(layFlat(new THREE.ShapeGeometry(copingShape, 10)), materials.get('coping'), layout.deckTop + COPING_LIFT, 'Margelle');
 
   // Basin: a ring of walls and a floor.
-  const wallShape = roundedRect(0, layout.centerZ, layout.length, layout.width, radius);
-  wallShape.holes.push(new THREE.Path(inner.getPoints(28)));
+  const wallShape = new THREE.Shape(outlinePoints);
+  wallShape.holes.push(new THREE.Path(innerPoints));
   const walls = layFlat(new THREE.ExtrudeGeometry(wallShape, { depth: layout.depth, bevelEnabled: false }));
   add(walls, materials.get('poolPlaster'), layout.deckTop - layout.depth, 'Bassin – parois');
   add(

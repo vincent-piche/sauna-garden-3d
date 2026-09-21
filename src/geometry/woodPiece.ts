@@ -39,6 +39,14 @@ export interface WoodPieceParams {
   tag: LayerTag;
   /** Set to false for decorative pieces that should not appear in the nomenclature. */
   countInBom?: boolean;
+  /**
+   * Thickness actually drawn, when it differs from the ordered one. Used to give each
+   * batten a fraction of a millimetre of relief so the joints catch the light, without
+   * fragmenting the cut list.
+   */
+  renderThickness?: number;
+  /** Selects one of the shade variations of the material, to break up a flat wall. */
+  variant?: number;
 }
 
 /**
@@ -47,8 +55,8 @@ export interface WoodPieceParams {
  */
 export function createWoodPiece(params: WoodPieceParams, ctx: BuildContext): THREE.Mesh {
   const { name, length, width, thickness, position, rotation, tag } = params;
-  const geometry = ctx.box(length, thickness, width);
-  const material = ctx.materials.get(params.material ?? 'structureWood');
+  const geometry = ctx.box(length, params.renderThickness ?? thickness, width);
+  const material = ctx.materials.get(params.material ?? 'structureWood', params.variant);
   const mesh = new THREE.Mesh(geometry, material);
 
   mesh.position.set(mm(position[0]), mm(position[1]), mm(position[2]));

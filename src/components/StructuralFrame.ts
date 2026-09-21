@@ -188,7 +188,7 @@ function addFloor(ctx: BuildContext, group: THREE.Group): void {
     );
   }
 
-  for (const strip of splitIntoStrips(-geometry.depth / 2, geometry.depth / 2, config.standardWoodWidth)) {
+  for (const [index, strip] of splitIntoStrips(-geometry.depth / 2, geometry.depth / 2, config.standardWoodWidth).entries()) {
     group.add(
       createWoodPiece(
         {
@@ -199,7 +199,8 @@ function addFloor(ctx: BuildContext, group: THREE.Group): void {
           position: [0, -config.floorBoardThickness / 2, (strip.u0 + strip.u1) / 2],
           rotation: ORIENTATION.flatAlongX,
           material: 'pineInterior',
-          tag: 'structure'
+          tag: 'structure',
+          variant: index
         },
         ctx
       )

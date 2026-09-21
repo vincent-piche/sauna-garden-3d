@@ -123,7 +123,10 @@ const FIELD_GROUPS: FieldGroup[] = [
     title: 'Toiture',
     fields: [
       building('roofSlope', 'Pente', 0, 25, 0.5, '°'),
-      building('roofOverhang', 'Débord', 0, 800, 10)
+      building('roofOverhang', 'Débord', 0, 800, 10),
+      // Sets the depth of the insulated bays between the rafters.
+      building('roofRafterHeight', 'Hauteur de chevron', 80, 300, 10),
+      building('roofDeckThickness', 'Volige', 15, 60, 1)
     ]
   },
   {
@@ -155,7 +158,8 @@ const FIELD_GROUPS: FieldGroup[] = [
     title: 'Paroi',
     fields: [
       building('insulationThickness', 'Isolation', 40, 240, 10, 'mm', { enabled: isInsulated }),
-      building('interiorLiningThickness', 'Lambris intérieur', 10, 40, 1, 'mm', { enabled: isInsulated })
+      // The roof is lined in both construction modes, so this one is always available.
+      building('interiorLiningThickness', 'Lambris (paroi et sous-face)', 10, 40, 1)
     ]
   },
   {
@@ -181,6 +185,7 @@ const FIELD_GROUPS: FieldGroup[] = [
       ground('poolLength', 'Bassin – longueur', 3000, 16000, 100),
       ground('poolWidth', 'Bassin – largeur', 2000, 9000, 100),
       ground('poolDistance', 'Distance au sauna', 500, 15000, 100),
+      ground('poolOffsetX', 'Décalage du sauna', -6000, 6000, 100),
       ground('poolDepth', 'Profondeur', 600, 2500, 50),
       ground('copingWidth', 'Margelle', 200, 900, 10),
       ground('terraceMargin', 'Dallage autour', 0, 6000, 100)

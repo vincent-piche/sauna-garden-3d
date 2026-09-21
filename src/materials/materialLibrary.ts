@@ -1,5 +1,13 @@
 import * as THREE from 'three';
 import type { MaterialKey } from './materialKeys';
+import { createSlateTextures, type SlateTextures } from './slateTexture';
+
+/**
+ * Timber is never perfectly uniform: each batten picks one of these shades, which is
+ * what makes a wall read as a set of battens rather than as a flat panel.
+ */
+const VARIANT_SHADES = [1, 0.935, 1.055, 0.885, 1.02, 0.965];
+const VARIED_KEYS: MaterialKey[] = ['pineExterior', 'pineInterior', 'structureWood'];
 
 /**
  * Simple, dependency free materials. No external texture is used in this version:
@@ -15,13 +23,22 @@ function standard(color: number, options: THREE.MeshStandardMaterialParameters =
 
 export class MaterialLibrary {
   private readonly materials: Record<MaterialKey, THREE.Material>;
+  private readonly variants = new Map<MaterialKey, THREE.Material[]>();
+  private readonly slate: SlateTextures;
 
   constructor() {
+    this.slate = createSlateTextures();
     this.materials = {
       pineExterior: standard(0xc9a06a, { roughness: 0.78, metalness: 0.02 }),
       pineInterior: standard(0xe3c18d, { roughness: 0.65, metalness: 0.0 }),
       structureWood: standard(0xb08a55, { roughness: 0.85, metalness: 0.0 }),
-      slate: standard(0x3a4148, { roughness: 0.45, metalness: 0.12 }),
+      slate: standard(0xffffff, {
+        roughness: 0.62,
+        metalness: 0.06,
+        map: this.slate.map,
+        normalMap: this.slate.normalMap,
+        normalScale: new THREE.Vector2(1.1, 1.1)
+      }),
       glass: standard(0x9fd2de, {
         roughness: 0.05,
         metalness: 0.0,
@@ -52,15 +69,55 @@ export class MaterialLibrary {
       trunk: standard(0x5b4735, { roughness: 0.95 }),
       sunMarker: new THREE.MeshBasicMaterial({ color: 0xffd98a })
     };
+
+    this.buildVariants();
   }
 
-  get(key: MaterialKey): THREE.Material {
-    return this.materials[key];
+  /** `variant` picks a shade for materials that have them, and is ignored for the others. */
+  get(key: MaterialKey, variant?: number): THREE.Material {
+    if (variant === undefined) {
+      return this.materials[key];
+    }
+    const shades = this.variants.get(key);
+    if (!shades) {
+      return this.materials[key];
+    }
+    return shades[Math.abs(Math.trunc(variant)) % shades.length];
+  }
+
+  /** Scales the slate texture so the courses keep their real size on any roof. */
+  setSlateScale(widthMm: number, slopeLengthMm: number): void {
+    const { width, height } = this.slate.patchSize;
+    for (const texture of [this.slate.map, this.slate.normalMap]) {
+      texture.repeat.set(widthMm / width, slopeLengthMm / height);
+      texture.needsUpdate = true;
+    }
   }
 
   dispose(): void {
     for (const material of Object.values(this.materials)) {
       material.dispose();
+    }
+    for (const shades of this.variants.values()) {
+      for (const material of shades) {
+        material.dispose();
+      }
+    }
+    this.slate.map.dispose();
+    this.slate.normalMap.dispose();
+  }
+
+  private buildVariants(): void {
+    for (const key of VARIED_KEYS) {
+      const base = this.materials[key] as THREE.MeshStandardMaterial;
+      this.variants.set(
+        key,
+        VARIANT_SHADES.map((shade) => {
+          const material = base.clone();
+          material.color.multiplyScalar(shade);
+          return material;
+        })
+      );
     }
   }
 }

@@ -73,7 +73,7 @@ export function buildBench(label: string, placement: BenchPlacement, ctx: BuildC
   }
 
   const slatZ = distributedCenters(zStart, zEnd, config.standardWoodWidth, config.benchSlatGap);
-  for (const z of slatZ) {
+  for (const [index, z] of slatZ.entries()) {
     group.add(
       createWoodPiece(
         {
@@ -84,7 +84,8 @@ export function buildBench(label: string, placement: BenchPlacement, ctx: BuildC
           position: [placement.centerX, placement.height - slatThickness / 2, z],
           rotation: ORIENTATION.flatAlongX,
           material: 'pineInterior',
-          tag: 'furniture'
+          tag: 'furniture',
+          variant: index
         },
         ctx
       )

@@ -32,6 +32,11 @@ export interface SiteConfig {
   poolWidth: number;
   /** From the front facade to the near edge of the coping. */
   poolDistance: number;
+  /**
+   * Offset of the pool along X. Positive means the sauna sits to the left of the pool
+   * axis when standing at the pool and looking at the door.
+   */
+  poolOffsetX: number;
   poolDepth: number;
   copingWidth: number;
   /** Paving kept around the coping. */
@@ -66,14 +71,15 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   poolLength: 9000,
   poolWidth: 4500,
   poolDistance: 3200,
+  poolOffsetX: 1500,
   poolDepth: 1500,
   copingWidth: 450,
   terraceMargin: 2200,
 
   cedarHeight: 15000,
-  cedarDistance: 7000,
+  cedarDistance: 8500,
   cypressHeight: 12000,
-  cypressDistance: 6000,
+  cypressDistance: 4500,
   hedgeHeight: 1600,
   hedgeDistance: 2600,
 

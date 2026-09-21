@@ -58,15 +58,17 @@ export class SiteModel {
     this.shape = shape;
 
     const poolZMin = sauna.depth / 2 + site.poolDistance + site.copingWidth;
+    const poolCenterX = site.poolOffsetX;
     const layout: PoolLayout = {
+      centerX: poolCenterX,
       centerZ: poolZMin + site.poolWidth / 2,
       length: site.poolLength,
       width: site.poolWidth,
       depth: site.poolDepth,
       copingWidth: site.copingWidth,
       terrace: {
-        xMin: -site.poolLength / 2 - site.copingWidth - site.terraceMargin,
-        xMax: site.poolLength / 2 + site.copingWidth + site.terraceMargin,
+        xMin: poolCenterX - site.poolLength / 2 - site.copingWidth - site.terraceMargin,
+        xMax: poolCenterX + site.poolLength / 2 + site.copingWidth + site.terraceMargin,
         zMin: poolZMin - site.copingWidth - REAR_PAVING,
         zMax: poolZMin + site.poolWidth + site.copingWidth + site.terraceMargin
       },
@@ -199,10 +201,12 @@ export class SiteModel {
 
     place('spreading', site.cedarDistance, -3000, site.cedarHeight, 0.33, 'foliageDry');
     place('spreading', site.cedarDistance + 4200, -11000, site.cedarHeight * 0.82, 0.3, 'foliage');
-    place('columnar', -site.cypressDistance, -1500, site.cypressHeight, 0.1);
-    place('columnar', -site.cypressDistance - 900, 2400, site.cypressHeight * 0.92, 0.1);
-    place('columnar', -site.cypressDistance - 300, 6200, site.cypressHeight * 0.86, 0.1);
-    place('columnar', -site.cypressDistance - 2200, -7000, site.cypressHeight * 1.12, 0.08, 'foliageDry');
+    // The four cypresses the sauna is moved towards.
+    place('columnar', -site.cypressDistance, -2200, site.cypressHeight, 0.1);
+    place('columnar', -site.cypressDistance - 700, 900, site.cypressHeight * 0.92, 0.1);
+    place('columnar', -site.cypressDistance - 200, 3900, site.cypressHeight * 0.86, 0.1);
+    place('columnar', -site.cypressDistance - 900, 6900, site.cypressHeight * 0.95, 0.1);
+    place('columnar', -site.cypressDistance - 2600, -7000, site.cypressHeight * 1.12, 0.08, 'foliageDry');
 
     if (site.hedgeHeight > 100) {
       const hedgeZ = -sauna.depth / 2 - site.hedgeDistance;
@@ -213,8 +217,9 @@ export class SiteModel {
     }
 
     // A couple of shrubs by the terrace, for scale.
-    place('round', site.poolLength / 2 + site.terraceMargin + 1400, sauna.depth / 2 + site.poolDistance, 1400, 0.7);
-    place('round', -site.poolLength / 2 - site.terraceMargin - 1600, sauna.depth / 2 + site.poolDistance + 5200, 1800, 0.65);
+    const poolEdge = site.poolOffsetX + site.poolLength / 2 + site.terraceMargin;
+    place('round', poolEdge + 1400, sauna.depth / 2 + site.poolDistance, 1400, 0.7);
+    place('round', site.poolOffsetX - site.poolLength / 2 - site.terraceMargin - 1600, sauna.depth / 2 + site.poolDistance + 5200, 1800, 0.65);
 
     return specs;
   }
