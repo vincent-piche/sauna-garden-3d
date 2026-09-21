@@ -19,11 +19,38 @@ npm install
 ## Lancement
 
 ```bash
-npm run dev        # serveur de développement (http://localhost:5180)
-npm run build      # vérification TypeScript + build de production dans dist/
-npm run preview    # sert le build de production
-npm run typecheck  # vérification TypeScript seule
+npm run dev         # serveur de développement (http://localhost:5180)
+npm run dev:mobile  # idem, mais accessible depuis le réseau local
+npm run build       # vérification TypeScript + build de production dans dist/
+npm run preview     # sert le build de production
+npm run typecheck   # vérification TypeScript seule
 ```
+
+### Ouvrir depuis un téléphone
+
+`npm run dev` n'écoute que sur `localhost` : le téléphone ne peut pas l'atteindre.
+`npm run dev:mobile` ajoute `--host`, ce qui fait écouter Vite sur toutes les interfaces et
+lui fait afficher les adresses à utiliser :
+
+```
+➜  Local:   http://localhost:5180/
+➜  Network: http://192.168.1.42:5180/
+```
+
+Il suffit de taper l'adresse **Network** dans le navigateur du téléphone, en étant sur le
+**même réseau Wi-Fi** que l'ordinateur. Le rechargement à chaud fonctionne aussi sur le
+téléphone.
+
+Si la page ne s'ouvre pas :
+
+- vérifier que le téléphone est sur le même réseau, et non en 4G ou sur un Wi-Fi invité ;
+- certains routeurs isolent les clients entre eux (« AP isolation ») : il faut désactiver
+  l'option ou passer par un partage de connexion depuis le téléphone ;
+- sur macOS, autoriser `node` à recevoir des connexions entrantes si le pare-feu le demande ;
+- l'adresse change quand le réseau change : c'est celle que Vite affiche qui fait foi.
+
+`dev:mobile` expose le serveur de développement à tout le réseau local le temps de la session.
+C'est sans conséquence sur un réseau domestique, mais à éviter sur un Wi-Fi public.
 
 ---
 

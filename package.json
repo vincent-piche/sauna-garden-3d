@@ -6,6 +6,7 @@
   "description": "Parametric 3D designer for an outdoor garden sauna",
   "scripts": {
     "dev": "vite",
+    "dev:mobile": "vite --host",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
