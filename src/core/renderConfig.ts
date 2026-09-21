@@ -22,7 +22,9 @@ export const DEFAULT_RENDER_CONFIG: RenderConfig = {
   waterReflections: true,
   detailedVegetation: true,
   highResolutionShadows: true,
-  renderScale: 2
+  // ×1 by default: the safe starting point on an unknown machine. Sharper is an
+  // upgrade to opt into once the rest of the scene is known to run smoothly.
+  renderScale: 1
 };
 
 export function cloneRenderConfig(config: RenderConfig): RenderConfig {

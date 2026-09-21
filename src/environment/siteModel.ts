@@ -6,6 +6,7 @@ import { mm } from '../config/units';
 import type { MaterialLibrary } from '../materials/materialLibrary';
 import { buildPool, type PoolLayout } from './pool';
 import type { SiteConfig } from './siteConfig';
+import { buildSteppingStones } from './steppingStones';
 import { sunDirection, sunPosition, type SunObserver, type SunPosition } from './sun';
 import { buildTerrain, terrainHeight, type Footprint, type TerrainShape } from './terrain';
 import { buildTree, type TreeSpec } from './trees';
@@ -17,6 +18,8 @@ const SUN_MARKER_RADIUS = 0.45;
 const HOUR_MARKER_RADIUS = 0.16;
 /** Paving kept between the pool coping and the lawn on the sauna side. */
 const REAR_PAVING = 0;
+/** Stepping stones crossing the lawn between the platform step and the pool terrace. */
+const STEPPING_STONE_COUNT = 4;
 
 export class SiteModel {
   readonly root = new THREE.Group();
@@ -25,16 +28,19 @@ export class SiteModel {
   private readonly decor = new THREE.Group();
   private readonly sunPathGroup = new THREE.Group();
   private readonly poolGeometries: THREE.BufferGeometry[] = [];
+  private readonly stoneGeometries: THREE.BufferGeometry[] = [];
   private readonly treeGeometries: THREE.BufferGeometry[] = [];
   private readonly sunPathGeometries: THREE.BufferGeometry[] = [];
   private readonly terrainGeometries: THREE.BufferGeometry[] = [];
 
   private terrainSignature = '';
   private poolSignature = '';
+  private stonesSignature = '';
   private treeSignature = '';
   private sunPathSignature = '';
   private sunMarker: THREE.Mesh | null = null;
   private poolGroup: THREE.Group | null = null;
+  private stonesGroup: THREE.Group | null = null;
   private treeGroup: THREE.Group | null = null;
   private water: Water | null = null;
   private shape: TerrainShape | null = null;
@@ -194,6 +200,31 @@ export class SiteModel {
       this.decor.add(this.poolGroup);
     }
 
+    const stonesPath = {
+      fromX: sauna.platform.centerX,
+      fromZ: sauna.platform.centerZ + sauna.platform.depth / 2,
+      toX: layout.centerX,
+      toZ: layout.terrace.zMin,
+      count: STEPPING_STONE_COUNT,
+      groundAt: (x: number, z: number) => this.groundAt(x, z)
+    };
+    const stonesSignature = JSON.stringify([
+      stonesPath.fromX,
+      stonesPath.fromZ,
+      stonesPath.toX,
+      stonesPath.toZ,
+      stonesPath.count,
+      this.terrainSignature
+    ]);
+    if (stonesSignature !== this.stonesSignature) {
+      this.stonesSignature = stonesSignature;
+      this.stonesGroup?.removeFromParent();
+      dispose(this.stoneGeometries);
+      this.stonesGroup = buildSteppingStones(stonesPath, this.materials, (geometry) => this.stoneGeometries.push(geometry));
+      tagAsSite(this.stonesGroup);
+      this.decor.add(this.stonesGroup);
+    }
+
     const specs = this.treeSpecs(site, sauna, render.detailedVegetation);
     const treeSignature = JSON.stringify(specs);
     if (treeSignature !== this.treeSignature) {
@@ -307,11 +338,14 @@ export class SiteModel {
   private clearDecor(): void {
     this.decor.clear();
     this.poolGroup = null;
+    this.stonesGroup = null;
     this.treeGroup = null;
     this.water = null;
     this.poolSignature = '';
+    this.stonesSignature = '';
     this.treeSignature = '';
     dispose(this.poolGeometries);
+    dispose(this.stoneGeometries);
     dispose(this.treeGeometries);
   }
 
