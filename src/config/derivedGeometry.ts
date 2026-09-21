@@ -45,6 +45,18 @@ export interface BenchPlacement {
   centerZ: number;
 }
 
+export interface PlatformPlacement {
+  width: number;
+  depth: number;
+  height: number;
+  centerX: number;
+  centerZ: number;
+  /** Top of the deck, which is also the underside of the sauna floor structure. */
+  topY: number;
+  /** Depth of the deck sticking out in front of the door, used as a step. */
+  frontExtension: number;
+}
+
 export interface StovePlacement {
   width: number;
   depth: number;
@@ -79,6 +91,7 @@ export interface SaunaGeometry {
 
   door: OpeningGeometry;
   window: OpeningGeometry;
+  platform: PlatformPlacement;
   mainBench: BenchPlacement;
   secondaryBench: BenchPlacement;
   stove: StovePlacement;
@@ -95,6 +108,7 @@ const MIN_SILL_HEIGHT = 50;
 const MIN_OPENING_SIZE = 300;
 const MIN_BENCH_LENGTH = 400;
 const REFERENCE_STOVE_POWER = 6000;
+const MIN_PLATFORM_JOIST_HEIGHT = 60;
 
 function buildLayers(config: SaunaConfig): { layers: WallLayer[]; studZone: WallLayer | null } {
   const layers: WallLayer[] = [];
@@ -273,6 +287,29 @@ export function deriveGeometry(config: SaunaConfig): SaunaGeometry {
 
   const floorStructureBottom = -(config.floorBoardThickness + config.floorJoistHeight);
 
+  // The sauna rests on the platform: the deck top is the underside of its floor structure.
+  const platformWidth = Math.max(config.platformWidth, width);
+  const platformDepth = Math.max(config.platformDepth, depth);
+  const platformHeight = Math.max(config.platformHeight, config.floorBoardThickness + MIN_PLATFORM_JOIST_HEIGHT);
+  if (platformWidth !== config.platformWidth || platformDepth !== config.platformDepth) {
+    warnings.push(
+      `Plateforme agrandie à ${Math.round(platformWidth)} × ${Math.round(platformDepth)} mm pour porter le sauna.`
+    );
+  }
+  if (platformHeight !== config.platformHeight) {
+    warnings.push(`Hauteur de plateforme portée à ${Math.round(platformHeight)} mm (solives + lame).`);
+  }
+  const platform: PlatformPlacement = {
+    width: platformWidth,
+    depth: platformDepth,
+    height: platformHeight,
+    centerX: 0,
+    // The whole surplus depth goes in front of the door, as a step.
+    centerZ: -depth / 2 + platformDepth / 2,
+    topY: floorStructureBottom,
+    frontExtension: platformDepth - depth
+  };
+
   return {
     config,
     width,
@@ -295,8 +332,9 @@ export function deriveGeometry(config: SaunaConfig): SaunaGeometry {
     mainBench,
     secondaryBench,
     stove,
+    platform,
     floorStructureBottom,
-    groundLevel: floorStructureBottom - 50,
+    groundLevel: platform.topY - platform.height,
     warnings
   };
 }

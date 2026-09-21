@@ -5,6 +5,7 @@ import type { SaunaConfig } from '../config/saunaConfig';
 import { createDoor } from '../components/Door';
 import { createFrontFacade } from '../components/FrontFacade';
 import { createMainBench } from '../components/MainBench';
+import { createPlatform } from '../components/Platform';
 import { createRearFacade } from '../components/RearFacade';
 import { createRearPanoramicWindow } from '../components/RearPanoramicWindow';
 import { createRoof } from '../components/Roof';
@@ -21,6 +22,7 @@ type ComponentFactory = (ctx: BuildContext) => THREE.Group;
 
 /** Registration order is the only place where the component list is declared. */
 const COMPONENTS: ComponentFactory[] = [
+  createPlatform,
   createStructuralFrame,
   createWalls,
   createFrontFacade,

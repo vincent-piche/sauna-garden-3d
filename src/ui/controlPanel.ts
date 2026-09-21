@@ -1,4 +1,5 @@
 import { cloneConfig, DEFAULT_SAUNA_CONFIG, type ConstructionMode, type SaunaConfig } from '../config/saunaConfig';
+import { loadConfigFromDisk, saveConfigToDisk } from '../io/configFile';
 import { VIEW_LABELS, type ViewName } from '../core/cameraViews';
 import type { SaunaModel } from '../model/saunaModel';
 import { VIEW_MODE_LABELS, type ViewMode } from '../model/viewModes';
@@ -40,6 +41,14 @@ const FIELD_GROUPS: FieldGroup[] = [
       { key: 'exteriorWidth', label: 'Largeur', min: 1200, max: 4000, step: 10, unit: 'mm' },
       { key: 'exteriorDepth', label: 'Profondeur', min: 1500, max: 5000, step: 10, unit: 'mm' },
       { key: 'entranceHeight', label: 'Hauteur (avant)', min: 1800, max: 3000, step: 10, unit: 'mm' }
+    ]
+  },
+  {
+    title: 'Plateforme',
+    fields: [
+      { key: 'platformWidth', label: 'Largeur', min: 1500, max: 6000, step: 10, unit: 'mm' },
+      { key: 'platformDepth', label: 'Profondeur', min: 1500, max: 8000, step: 10, unit: 'mm' },
+      { key: 'platformHeight', label: 'Hauteur', min: 80, max: 800, step: 10, unit: 'mm' }
     ]
   },
   {
@@ -98,6 +107,13 @@ const FIELD_GROUPS: FieldGroup[] = [
     ]
   },
   {
+    title: 'Menuiseries aluminium',
+    fields: [
+      { key: 'frameProfileWidth', label: 'Largeur de profilé', min: 20, max: 120, step: 5, unit: 'mm' },
+      { key: 'glazingThickness', label: 'Épaisseur du vitrage', min: 6, max: 60, step: 2, unit: 'mm' }
+    ]
+  },
+  {
     title: 'Module bois',
     fields: [
       { key: 'standardWoodLength', label: 'Longueur standard', min: 1500, max: 6000, step: 100, unit: 'mm' },
@@ -139,6 +155,7 @@ export interface ControlPanelCallbacks {
 export class ControlPanel {
   private readonly sliders = new Map<NumericKey, SliderHandle>();
   private readonly warningsBox = el('div', 'warnings');
+  private readonly statusBox = el('div', 'status');
   private readonly bomView: BomView;
   private readonly viewModeRow: ButtonRowHandle<ViewMode>;
   private readonly constructionRow: ButtonRowHandle<ConstructionMode>;
@@ -201,11 +218,15 @@ export class ControlPanel {
       }
     }
 
-    const resetSection = createSection(container, 'Projet');
-    const resetButton = el('button', undefined, 'Réinitialiser les paramètres');
-    resetButton.type = 'button';
-    resetButton.addEventListener('click', () => this.reset());
-    resetSection.append(resetButton);
+    const projectSection = createSection(container, 'Projet');
+    const projectRow = el('div', 'button-row');
+    projectRow.append(
+      this.actionButton('Enregistrer…', () => void this.save()),
+      this.actionButton('Ouvrir…', () => void this.load()),
+      this.actionButton('Réinitialiser', () => this.reset())
+    );
+    this.statusBox.hidden = true;
+    projectSection.append(projectRow, this.statusBox);
 
     this.bomView = new BomView(container);
     this.refreshEnabledState();
@@ -231,14 +252,67 @@ export class ControlPanel {
     this.viewModeRow.setActive(mode);
   }
 
-  private reset(): void {
-    this.config = cloneConfig(DEFAULT_SAUNA_CONFIG);
+  /** Replaces every parameter at once, for instance after loading a file. */
+  applyConfig(config: SaunaConfig): void {
+    this.config = cloneConfig(config);
+    const target = this.config as unknown as Record<string, number>;
     for (const [key, handle] of this.sliders) {
-      handle.setValue(this.config[key]);
+      // The slider clamps to its own range, and the configuration follows it.
+      target[key] = handle.setValue(this.config[key]);
     }
     this.constructionRow.setActive(this.config.constructionMode);
     this.refreshEnabledState();
     this.callbacks.onConfigChange(this.config, 'constructionMode');
+  }
+
+  private actionButton(label: string, onClick: () => void): HTMLButtonElement {
+    const button = el('button', undefined, label);
+    button.type = 'button';
+    button.addEventListener('click', onClick);
+    return button;
+  }
+
+  private setStatus(message: string, kind: 'info' | 'error'): void {
+    this.statusBox.textContent = message;
+    this.statusBox.classList.toggle('error', kind === 'error');
+    this.statusBox.hidden = false;
+  }
+
+  private async save(): Promise<void> {
+    const result = await saveConfigToDisk(this.config);
+    switch (result.status) {
+      case 'saved':
+        this.setStatus(`Configuration enregistrée dans ${result.filename}.`, 'info');
+        break;
+      case 'downloaded':
+        this.setStatus(`Configuration téléchargée sous ${result.filename}.`, 'info');
+        break;
+      case 'cancelled':
+        this.setStatus('Enregistrement annulé.', 'info');
+        break;
+      default:
+        this.setStatus(`Échec de l'enregistrement : ${result.message}`, 'error');
+    }
+  }
+
+  private async load(): Promise<void> {
+    const result = await loadConfigFromDisk();
+    switch (result.status) {
+      case 'loaded':
+        this.applyConfig(result.config);
+        this.setStatus(`Configuration chargée depuis ${result.filename}.`, 'info');
+        break;
+      case 'cancelled':
+        this.setStatus('Ouverture annulée.', 'info');
+        break;
+      default:
+        this.setStatus(`Fichier illisible : ${result.message}`, 'error');
+    }
+  }
+
+  private reset(): void {
+    this.applyConfig(DEFAULT_SAUNA_CONFIG);
+    this.setStatus('Paramètres réinitialisés.', 'info');
   }
 
   private refreshEnabledState(): void {

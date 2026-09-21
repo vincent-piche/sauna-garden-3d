@@ -31,7 +31,8 @@ export interface SliderOptions {
 }
 
 export interface SliderHandle {
-  setValue(value: number): void;
+  /** Applies a value and returns the one the input actually accepted, after clamping. */
+  setValue(value: number): number;
   setEnabled(enabled: boolean): void;
 }
 
@@ -64,9 +65,11 @@ export function createSlider(parent: HTMLElement, options: SliderOptions): Slide
   parent.append(field);
 
   return {
-    setValue(next: number): void {
+    setValue(next: number): number {
       input.value = String(next);
-      render(next);
+      const accepted = Number(input.value);
+      render(accepted);
+      return accepted;
     },
     setEnabled(enabled: boolean): void {
       field.classList.toggle('disabled', !enabled);
@@ -117,14 +120,4 @@ export function formatNumber(value: number): string {
 
 export function formatMetres(millimetres: number): string {
   return `${(millimetres / 1000).toFixed(2)} m`;
-}
-
-export function downloadTextFile(filename: string, content: string, mimeType: string): void {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const link = el('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
 }

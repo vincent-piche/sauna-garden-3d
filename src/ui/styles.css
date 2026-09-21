@@ -233,3 +233,20 @@ table.bom tr.spliced td {
   line-height: 1.45;
   margin-top: 8px;
 }
+
+.status {
+  margin-top: 9px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  background: var(--panel-bg-soft);
+  border-left: 2px solid var(--panel-border);
+  border-radius: 0 6px 6px 0;
+  padding: 7px 9px;
+}
+
+.status.error {
+  color: #e98a7a;
+  border-left-color: #e98a7a;
+  background: rgba(233, 138, 122, 0.08);
+}

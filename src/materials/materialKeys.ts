@@ -5,6 +5,7 @@ export type MaterialKey =
   | 'structureWood'
   | 'slate'
   | 'glass'
+  | 'aluminiumAnthracite'
   | 'stoveMetal'
   | 'stoveStones'
   | 'insulation'

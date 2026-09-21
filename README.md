@@ -48,7 +48,7 @@ src/
 ├─ components/             Un fichier par élément, indépendants les uns des autres
 │  ├─ Walls.ts             FrontFacade.ts      RearFacade.ts
 │  ├─ Door.ts              RearPanoramicWindow.ts
-│  ├─ Roof.ts              StructuralFrame.ts
+│  ├─ Roof.ts              StructuralFrame.ts  Platform.ts
 │  ├─ MainBench.ts         SecondaryBench.ts   SaunaStove.ts
 ├─ model/
 │  ├─ saunaModel.ts         Assemblage, reconstruction, modes de visualisation
@@ -57,6 +57,9 @@ src/
 │  └─ tags.ts               Étiquettes de calque portées par chaque maillage
 ├─ bom/
 │  └─ billOfMaterials.ts    generateBillOfMaterials() + export CSV
+├─ io/
+│  ├─ configFile.ts         Enregistrement / ouverture de la configuration en JSON
+│  └─ download.ts           Téléchargement de secours
 ├─ core/
 │  ├─ viewer.ts             Scène, caméra, lumières, ombres, plan de coupe
 │  └─ cameraViews.ts        Les 9 vues prédéfinies, calculées depuis les dimensions
@@ -79,9 +82,10 @@ et `createPanel()`.
 
 **Depuis l'interface** : chaque curseur du panneau de gauche modifie la configuration et
 déclenche une reconstruction complète du modèle, au plus une fois par frame. Sont réglables :
-largeur, profondeur, hauteur, pente et débord de toit, largeur/hauteur de la porte,
-largeur/hauteur/allège de la baie, longueur/profondeur/hauteur des deux bancs, puissance du
-poêle, épaisseur d'isolation et de lambris, module bois standard, position du plan de coupe,
+largeur, profondeur, hauteur, largeur/profondeur/hauteur de la plateforme, pente et débord de
+toit, largeur/hauteur de la porte, largeur/hauteur/allège de la baie,
+longueur/profondeur/hauteur des deux bancs, puissance du poêle, épaisseur d'isolation et de
+lambris, profilé et vitrage des menuiseries, module bois standard, position du plan de coupe,
 et le mode de construction (*Solid wood* / *Insulated wall*).
 
 **Depuis le code** : modifier `DEFAULT_SAUNA_CONFIG` dans
@@ -94,6 +98,39 @@ et le mode de construction (*Solid wood* / *Insulated wall*).
 3. Ajouter une entrée dans `FIELD_GROUPS` de [`src/ui/controlPanel.ts`](src/ui/controlPanel.ts).
 
 Aucun autre fichier n'a besoin d'être touché : le panneau est déclaratif.
+
+---
+
+## Enregistrer et rouvrir un projet
+
+La section **Projet** du panneau contient trois boutons :
+
+| Bouton | Effet |
+|---|---|
+| **Enregistrer…** | ouvre la boîte de dialogue native et écrit `sauna-config.json` à l'endroit choisi |
+| **Ouvrir…** | relit un fichier et applique tous les paramètres d'un coup |
+| **Réinitialiser** | revient aux valeurs par défaut |
+
+Le fichier est du JSON lisible et modifiable à la main :
+
+```json
+{
+  "format": "sauna-garden-3d",
+  "version": 1,
+  "savedAt": "2026-09-21T09:01:11.981Z",
+  "config": { "exteriorWidth": 2000, "exteriorDepth": 2500, "...": "..." }
+}
+```
+
+La relecture est tolérante et sûre : les clés inconnues sont ignorées, une valeur absente ou
+d'un type inattendu retombe sur la valeur par défaut, et une valeur hors de la plage d'un
+curseur est ramenée dans cette plage. Un fichier qui ne contient aucun paramètre reconnu est
+refusé avec un message. Un objet de configuration « nu » (sans l'enveloppe `format`/`config`)
+est également accepté.
+
+Les navigateurs qui n'implémentent pas la *File System Access API* (Firefox, Safari)
+retombent automatiquement sur un téléchargement et sur un sélecteur de fichier classique ;
+le format du fichier est identique.
 
 ---
 
@@ -156,6 +193,9 @@ standard de 2500 mm, la longueur achetée et une estimation des chutes. Le bouto
 - Le poêle est un volume indicatif dont les dimensions varient légèrement avec la puissance ;
   ce n'est pas un appareil réel.
 - L'optimisation de débit est une estimation, pas une optimisation.
+- Les menuiseries aluminium (porte, baie, huisseries) ne figurent pas dans la nomenclature,
+  qui reste une liste de débit **bois**.
+- La plateforme est posée sans plots, sans fondation et sans ancrage modélisés.
 - Le bundle de production fait ~580 kB (Three.js non découpé).
 
 Les hypothèses géométriques et constructives détaillées sont dans [DESIGN.md](DESIGN.md).

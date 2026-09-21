@@ -3,11 +3,13 @@ import { buildOpeningFrame } from '../geometry/openingFrame';
 import { createPanel } from '../geometry/woodPiece';
 import type { BuildContext } from '../model/buildContext';
 
-const GLASS_THICKNESS = 24;
-
-/** Fixed panoramic bay on the rear facade, facing the garden and the valley. */
+/**
+ * Fixed panoramic bay on the rear facade, facing the garden and the valley.
+ * Anthracite grey aluminium frame, matching the entrance door.
+ */
 export function createRearPanoramicWindow(ctx: BuildContext): THREE.Group {
   const geometry = ctx.geometry;
+  const config = ctx.config;
   const bay = geometry.window;
   const wallCenterZ = -geometry.depth / 2 + geometry.wallThickness / 2;
 
@@ -22,7 +24,9 @@ export function createRearPanoramicWindow(ctx: BuildContext): THREE.Group {
       sill: bay.sill,
       height: bay.height,
       wallCenterZ,
-      wallThickness: geometry.wallThickness,
+      frameDepth: geometry.wallThickness,
+      profile: config.frameProfileWidth,
+      material: 'aluminiumAnthracite',
       includeSill: true
     },
     ctx
@@ -34,7 +38,7 @@ export function createRearPanoramicWindow(ctx: BuildContext): THREE.Group {
     createPanel(
       {
         name: 'Baie – vitrage',
-        size: [clear.width, clear.height, GLASS_THICKNESS],
+        size: [clear.width, clear.height, config.glazingThickness],
         position: [clear.centerX, clear.bottom + clear.height / 2, wallCenterZ],
         material: 'glass',
         tag: 'glazing'

@@ -35,8 +35,9 @@ Les éléments qui **ne** peuvent pas utiliser le module, et pourquoi :
 | Élément | Section | Raison |
 |---|---|---|
 | Montants d'ossature | `épaisseur d'isolation` × 80 | le montant doit remplir l'épaisseur d'isolation |
-| Huisseries porte et baie | `épaisseur de paroi` × 40 | le tapée doit traverser toute la paroi |
 | Lambris intérieur | 80 × 20 | une finition de 40 mm serait absurde |
+| Solives de plateforme | `hauteur de plateforme − 40` × 40 | la hauteur de la solive fixe la hauteur de la terrasse |
+| Menuiseries porte et baie | profilé aluminium 50 mm | ce ne sont pas des pièces de bois (voir §5) |
 
 ## 3. Parois
 
@@ -86,11 +87,20 @@ nomenclature les signale comme nécessitant un aboutage.
 
 ## 5. Ouvertures
 
-- **Porte** : façade avant, centrée, 800 × 2000 mm par défaut. Vantail à lames verticales et
-  deux barres, modélisé **fermé**, sans quincaillerie autre qu'une poignée symbolique.
-- **Baie** : façade arrière, centrée, 1800 × 1700 mm par défaut, **fixe**, vitrage simple
-  volume de 24 mm sans châssis ouvrant ni double vitrage modélisé.
+Les deux menuiseries sont en **aluminium gris anthracite** (RAL 7016). Un profilé est
+modélisé comme un volume rectangulaire de 50 mm de large (paramétrable), traversant toute
+l'épaisseur de la paroi pour le dormant, et de 50 mm de profondeur pour l'ouvrant.
+
+- **Porte** : façade avant, centrée, 800 × 1920 mm par défaut. **Entièrement vitrée** : un
+  châssis aluminium (deux montants, deux traverses) enserrant un vitrage clair, le tout dans
+  un dormant aluminium de la même teinte. Modélisée **fermée**, avec une poignée barre.
+  Pas de seuil, pas de paumelles, pas de serrure modélisés.
+- **Baie** : façade arrière, centrée, 1680 × 1000 mm sur une allège de 570 mm par défaut,
+  **fixe**, dormant aluminium sur les quatre côtés, vitrage simple volume de 24 mm sans
+  châssis ouvrant ni double vitrage modélisé.
 - Aucun vitrage sur les murs latéraux, par choix de conception.
+
+L'aluminium n'apparaît pas dans la nomenclature, qui reste une liste de débit bois.
 
 Les dimensions demandées sont **contraintes** au moment du calcul de la géométrie dérivée, et
 non silencieusement : chaque ajustement produit un avertissement affiché dans le panneau.
@@ -104,16 +114,15 @@ constructible. Contraintes actives :
 - bancs limités à la profondeur intérieure, et passage libre de 400 mm entre les deux bancs ;
 - banc secondaire raccourci pour dégager l'emprise du poêle.
 
-Avec les valeurs par défaut, deux contraintes se déclenchent : l'allège de la baie descend à
-89 mm (une baie de 1700 mm dans un mur arrière de 1849 mm), et le banc principal est ramené à
-la profondeur intérieure (2340 mm au lieu des 2500 mm demandés).
+Avec les valeurs par défaut, aucune de ces contraintes ne se déclenche : le panneau
+d'avertissements reste vide tant que les dimensions demandées sont constructibles.
 
 ## 6. Aménagement intérieur
 
-- **Banc principal** : le long du mur gauche, sur toute la profondeur intérieure, hauteur
-  900 mm par défaut, assez long pour s'allonger.
-- **Banc secondaire** : face au précédent, le long du mur droit, plus court (1400 mm), hauteur
-  450 mm, arrêté avant le poêle.
+- **Banc principal** : le long du mur gauche, 2300 mm de long par défaut — assez pour
+  s'allonger — 600 mm de profondeur, 500 mm de hauteur.
+- **Banc secondaire** : face au précédent, le long du mur droit, plus court (1400 mm), même
+  hauteur, arrêté avant le poêle.
 - Les deux bancs sont des structures à lattes : deux longerons sur chant, des pieds tous les
   900 mm maximum, des lattes de 80 mm espacées de 15 mm.
 - **Poêle** : électrique, dans l'**angle arrière droit** vu depuis l'entrée. Corps métallique,
@@ -126,11 +135,30 @@ la profondeur intérieure (2340 mm au lieu des 2500 mm demandés).
 rapport au volume à chauffer, l'alimentation électrique, la ventilation, l'évacuation d'eau,
 la protection du sol et des parois à proximité de l'appareil.
 
-## 7. Plancher
+## 7. Plancher et plateforme
 
-Solives de 80 mm sur chant à 500 mm d'entraxe, deux longrines de rive, lame de plancher de
-40 mm au-dessus. Le sol fini est à `Y = 0`, la structure descend à −120 mm. Pas de fondation,
-pas de plots, pas d'isolation ni d'étanchéité en sous-face, pas de pente d'évacuation.
+**Plancher du sauna** : solives de 80 mm sur chant à 500 mm d'entraxe, deux longrines de
+rive, lame de plancher de 40 mm au-dessus. Le sol fini est à `Y = 0`, la structure descend à
+−120 mm. Pas d'isolation ni d'étanchéité en sous-face, pas de pente d'évacuation.
+
+**Plateforme** : terrasse bois de 2500 × 3500 mm et 200 mm de haut par défaut, les trois
+dimensions étant des paramètres du modèle. Son plan de pose se déduit du sauna :
+
+- le sauna est **centré en largeur** — 250 mm de terrasse de chaque côté par défaut ;
+- en profondeur, **tout le surplus est placé devant la porte** (1000 mm par défaut) et sert
+  de marchepied ; la terrasse est donc affleurante au nu de la façade arrière ;
+- le dessus du platelage coïncide avec le **dessous de la structure de plancher** du sauna
+  (−120 mm) : on monte donc de 120 mm en entrant.
+
+Composition : lames de terrasse dans le sens de la largeur (2500 mm, soit exactement une
+planche standard), solives dans le sens de la profondeur, deux traverses de rive. La hauteur
+de solive vaut `hauteur de plateforme − 40 mm`, ce qui fixe la hauteur de la terrasse.
+
+Si la plateforme demandée est plus petite que l'emprise du sauna, elle est agrandie
+automatiquement et un avertissement est affiché.
+
+**Non modélisé** : plots, fondations, ancrage au sol, garde-corps, structure sous la partie
+en porte-à-faux, pente d'écoulement, espacement entre lames pour le drainage.
 
 ## 8. Nomenclature
 
@@ -158,7 +186,20 @@ pleines. Le plan de coupe est un `clippingPlane` global déplaçable le long de 
 géométrie sans reboucher les faces, ce qui reste lisible mais n'est pas une vraie coupe
 « remplie ».
 
-## 10. Ce que la V1 ne fait volontairement pas
+## 10. Fichier de projet
+
+La configuration complète s'enregistre sur le disque en JSON (`sauna-config.json`), via la
+*File System Access API* quand le navigateur la propose, sinon par téléchargement. Le fichier
+porte un en-tête `format` / `version` / `savedAt` et l'objet `SaunaConfig` intégral.
+
+Hypothèses de relecture : le fichier est une **source non fiable**. Chaque clé attendue est
+relue individuellement, les clés inconnues sont ignorées, les types inattendus retombent sur
+la valeur par défaut, et les valeurs hors plage sont ramenées dans la plage du curseur
+correspondant. Il n'existe donc pas de fichier capable de produire un modèle non
+constructible. La `version` n'est pas encore utilisée pour migrer : une future version du
+format devra décider quoi faire des fichiers de version 1.
+
+## 11. Ce que la V1 ne fait volontairement pas
 
 Réalité augmentée, photogrammétrie, génération d'images IA, calcul structurel, validation
 réglementaire, calcul thermique détaillé. La priorité a été mise sur une base paramétrique

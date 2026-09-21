@@ -29,6 +29,8 @@ export class MaterialLibrary {
         opacity: 0.26,
         envMapIntensity: 1.2
       }),
+      // RAL 7016 anthracite grey, used for every aluminium joinery profile.
+      aluminiumAnthracite: standard(0x383e42, { roughness: 0.45, metalness: 0.75 }),
       stoveMetal: standard(0x44494f, { roughness: 0.38, metalness: 0.85 }),
       stoveStones: standard(0x6d6963, { roughness: 0.95, metalness: 0.0, flatShading: true }),
       insulation: standard(0xf0c96b, { roughness: 0.95, transparent: true, opacity: 0.6 }),

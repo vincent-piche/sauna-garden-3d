@@ -1,6 +1,7 @@
 import * as THREE from 'three';
+import type { MaterialKey } from '../materials/materialKeys';
 import type { BuildContext } from '../model/buildContext';
-import { createWoodPiece, ORIENTATION } from './woodPiece';
+import { createPanel } from './woodPiece';
 
 export interface OpeningFrameParams {
   name: string;
@@ -11,41 +12,42 @@ export interface OpeningFrameParams {
   height: number;
   /** Z coordinate of the middle of the wall. */
   wallCenterZ: number;
-  wallThickness: number;
+  /** Depth of the frame through the wall. */
+  frameDepth: number;
+  /** Visible width of one profile. */
+  profile: number;
+  material: MaterialKey;
   includeSill: boolean;
 }
 
 export interface OpeningFrame {
   group: THREE.Group;
-  /** Clear opening left inside the lining, where the leaf or the glazing goes. */
+  /** Clear opening left inside the frame, where the sash or the fixed glazing goes. */
   clear: { centerX: number; bottom: number; width: number; height: number };
 }
 
 /**
- * Timber lining of an opening. The lining boards are ripped to the wall thickness,
- * which is the one place where the standard 80 mm width cannot be kept.
+ * Frame lining an opening, built from four rectangular profiles.
+ * The profiles are aluminium, so they are modelled as panels and are deliberately
+ * absent from the timber bill of materials.
  */
 export function buildOpeningFrame(params: OpeningFrameParams, ctx: BuildContext): OpeningFrame {
-  const frameThickness = ctx.config.standardWoodThickness;
+  const { profile, frameDepth, material, wallCenterZ } = params;
   const group = new THREE.Group();
   group.name = `${params.name}Frame`;
 
-  const jambLength = params.height;
   for (const side of [-1, 1] as const) {
     group.add(
-      createWoodPiece(
+      createPanel(
         {
-          name: `${params.name} – montant d'huisserie`,
-          length: jambLength,
-          width: params.wallThickness,
-          thickness: frameThickness,
+          name: `${params.name} – montant`,
+          size: [profile, params.height, frameDepth],
           position: [
-            params.centerX + side * (params.width / 2 - frameThickness / 2),
+            params.centerX + side * (params.width / 2 - profile / 2),
             params.sill + params.height / 2,
-            params.wallCenterZ
+            wallCenterZ
           ],
-          rotation: ORIENTATION.uprightFacingX,
-          material: 'pineInterior',
+          material,
           tag: 'joinery'
         },
         ctx
@@ -54,15 +56,12 @@ export function buildOpeningFrame(params: OpeningFrameParams, ctx: BuildContext)
   }
 
   group.add(
-    createWoodPiece(
+    createPanel(
       {
         name: `${params.name} – traverse haute`,
-        length: params.width,
-        width: params.wallThickness,
-        thickness: frameThickness,
-        position: [params.centerX, params.sill + params.height - frameThickness / 2, params.wallCenterZ],
-        rotation: ORIENTATION.flatAlongX,
-        material: 'pineInterior',
+        size: [params.width, profile, frameDepth],
+        position: [params.centerX, params.sill + params.height - profile / 2, wallCenterZ],
+        material,
         tag: 'joinery'
       },
       ctx
@@ -71,15 +70,12 @@ export function buildOpeningFrame(params: OpeningFrameParams, ctx: BuildContext)
 
   if (params.includeSill) {
     group.add(
-      createWoodPiece(
+      createPanel(
         {
-          name: `${params.name} – appui`,
-          length: params.width,
-          width: params.wallThickness,
-          thickness: frameThickness,
-          position: [params.centerX, params.sill + frameThickness / 2, params.wallCenterZ],
-          rotation: ORIENTATION.flatAlongX,
-          material: 'pineInterior',
+          name: `${params.name} – traverse basse`,
+          size: [params.width, profile, frameDepth],
+          position: [params.centerX, params.sill + profile / 2, wallCenterZ],
+          material,
           tag: 'joinery'
         },
         ctx
@@ -87,14 +83,14 @@ export function buildOpeningFrame(params: OpeningFrameParams, ctx: BuildContext)
     );
   }
 
-  const bottom = params.sill + (params.includeSill ? frameThickness : 0);
+  const bottom = params.sill + (params.includeSill ? profile : 0);
   return {
     group,
     clear: {
       centerX: params.centerX,
       bottom,
-      width: params.width - 2 * frameThickness,
-      height: params.sill + params.height - frameThickness - bottom
+      width: params.width - 2 * profile,
+      height: params.sill + params.height - profile - bottom
     }
   };
 }

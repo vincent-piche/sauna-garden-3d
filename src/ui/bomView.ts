@@ -1,5 +1,6 @@
 import { billOfMaterialsToCsv, type BillOfMaterials } from '../bom/billOfMaterials';
-import { createSection, downloadTextFile, el, formatMetres } from './widgets';
+import { downloadTextFile } from '../io/download';
+import { createSection, el, formatMetres } from './widgets';
 
 /** Nomenclature table plus the board / offcut summary. */
 export class BomView {

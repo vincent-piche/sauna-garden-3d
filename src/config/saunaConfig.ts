@@ -47,6 +47,15 @@ export interface SaunaConfig {
   stoveHeight: number;
   stoveWallClearance: number;
 
+  /** Timber platform the sauna rests on. The extra depth is a step in front of the door. */
+  platformWidth: number;
+  platformDepth: number;
+  platformHeight: number;
+
+  /** Aluminium joinery: visible width of a profile, and glazing thickness. */
+  frameProfileWidth: number;
+  glazingThickness: number;
+
   /** Wall build-up. */
   constructionMode: ConstructionMode;
   insulationThickness: number;
@@ -88,19 +97,19 @@ export const DEFAULT_SAUNA_CONFIG: SaunaConfig = {
   standardWoodThickness: 40,
 
   doorWidth: 800,
-  doorHeight: 2000,
+  doorHeight: 1920,
 
-  rearWindowWidth: 1800,
-  rearWindowHeight: 1700,
-  rearWindowSillHeight: 150,
+  rearWindowWidth: 1680,
+  rearWindowHeight: 1000,
+  rearWindowSillHeight: 570,
 
-  mainBenchLength: 2500,
+  mainBenchLength: 2300,
   mainBenchDepth: 600,
-  mainBenchHeight: 900,
+  mainBenchHeight: 500,
 
   secondaryBenchLength: 1400,
   secondaryBenchDepth: 500,
-  secondaryBenchHeight: 450,
+  secondaryBenchHeight: 500,
   benchSlatGap: 15,
 
   stovePower: 6000,
@@ -108,6 +117,13 @@ export const DEFAULT_SAUNA_CONFIG: SaunaConfig = {
   stoveDepth: 400,
   stoveHeight: 700,
   stoveWallClearance: 120,
+
+  platformWidth: 2500,
+  platformDepth: 3500,
+  platformHeight: 200,
+
+  frameProfileWidth: 50,
+  glazingThickness: 24,
 
   constructionMode: 'solidWood',
   insulationThickness: 100,
@@ -120,7 +136,7 @@ export const DEFAULT_SAUNA_CONFIG: SaunaConfig = {
 
   floorBoardThickness: 40,
   floorJoistHeight: 80,
-  roofOverhang: 300,
+  roofOverhang: 100,
   roofRafterHeight: 80,
   roofDeckThickness: 40,
   slateThickness: 10,
