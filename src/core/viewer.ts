@@ -5,6 +5,8 @@ import { mm } from '../config/units';
 
 const SHADOW_EXTENT = 32; // metres, wide enough for the trees and their long shadows
 const SUN_DISTANCE = 70; // metres
+const BASE_FIELD_OF_VIEW = 50; // degrees, horizontal reference
+const MAX_FIELD_OF_VIEW = 80;
 
 export interface CameraPose {
   /** Millimetres, in sauna coordinates. */
@@ -62,7 +64,7 @@ export class Viewer {
     this.scene.environmentIntensity = 0.45;
     pmrem.dispose();
 
-    this.camera = new THREE.PerspectiveCamera(50, 1, 0.05, 2000);
+    this.camera = new THREE.PerspectiveCamera(BASE_FIELD_OF_VIEW, 1, 0.05, 2000);
     this.camera.position.set(4, 2.5, 5);
 
     this.controls = new OrbitControls(this.camera, canvas);
@@ -70,6 +72,8 @@ export class Viewer {
     this.controls.dampingFactor = 0.08;
     this.controls.maxPolarAngle = Math.PI / 2 + 0.25;
     this.controls.target.set(0, 1, 0);
+    // One finger orbits by default, two fingers pinch to zoom and pan together.
+    this.controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
 
     this.sky = new THREE.HemisphereLight(0xdfeaf2, 0x53603f, 1.1);
     this.scene.add(this.sky);
@@ -115,6 +119,11 @@ export class Viewer {
     this.scene.environmentIntensity = 0.05 + 0.45 * twilight;
   }
 
+  /** Switches what a single finger does, since a phone has no second mouse button. */
+  setOneFingerGesture(gesture: 'orbit' | 'pan'): void {
+    this.controls.touches.ONE = gesture === 'pan' ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE;
+  }
+
   setSectionEnabled(enabled: boolean, offsetMillimetres: number): void {
     this.sectionPlane.constant = mm(offsetMillimetres);
     this.renderer.clippingPlanes = enabled ? [this.sectionPlane] : [];
@@ -145,7 +154,17 @@ export class Viewer {
   private readonly handleResize = (): void => {
     const width = this.canvas.clientWidth || window.innerWidth;
     const height = this.canvas.clientHeight || window.innerHeight;
-    this.camera.aspect = width / height;
+    const aspect = width / Math.max(1, height);
+    this.camera.aspect = aspect;
+    // In portrait, widen the vertical field so the horizontal one stays constant:
+    // without this the sauna would be cropped on a phone held upright.
+    this.camera.fov =
+      aspect >= 1
+        ? BASE_FIELD_OF_VIEW
+        : Math.min(
+            MAX_FIELD_OF_VIEW,
+            (2 * Math.atan(Math.tan((BASE_FIELD_OF_VIEW * Math.PI) / 360) / aspect) * 180) / Math.PI
+          );
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height, false);
   };

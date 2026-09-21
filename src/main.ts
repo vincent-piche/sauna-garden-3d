@@ -9,6 +9,7 @@ import type { SaunaProject } from './io/configFile';
 import { MaterialLibrary } from './materials/materialLibrary';
 import { SaunaModel } from './model/saunaModel';
 import type { ViewMode } from './model/viewModes';
+import { setupAppShell } from './ui/appShell';
 import { ControlPanel } from './ui/controlPanel';
 
 /** Site parameters that only move the sun, and never rebuild any geometry. */
@@ -24,12 +25,22 @@ const SUN_ONLY_KEYS = new Set<keyof SiteConfig>([
 
 const canvas = document.querySelector<HTMLCanvasElement>('#viewport');
 const panelContainer = document.querySelector<HTMLElement>('#panel');
-if (!canvas || !panelContainer) {
-  throw new Error('Le document doit contenir #viewport et #panel.');
+const panelToggle = document.querySelector<HTMLButtonElement>('#panel-toggle');
+const panelBackdrop = document.querySelector<HTMLElement>('#panel-backdrop');
+const gestureToggle = document.querySelector<HTMLButtonElement>('#gesture-toggle');
+if (!canvas || !panelContainer || !panelToggle || !panelBackdrop || !gestureToggle) {
+  throw new Error('Le document ne contient pas les éléments attendus de la coque.');
 }
 
 const materials = new MaterialLibrary();
 const viewer = new Viewer(canvas);
+const shell = setupAppShell({
+  panel: panelContainer,
+  toggle: panelToggle,
+  backdrop: panelBackdrop,
+  gestureButton: gestureToggle,
+  onGestureChange: (gesture) => viewer.setOneFingerGesture(gesture)
+});
 const model = new SaunaModel(materials);
 const siteModel = new SiteModel(materials);
 viewer.scene.add(model.root, siteModel.root);
@@ -136,6 +147,8 @@ function scheduleRebuild(what: { sauna: boolean; site: boolean }): void {
 }
 
 function applyView(view: ViewName): void {
+  // On a phone the panel covers the scene, so picking a view closes it.
+  shell.closeDrawer();
   const preset = getViewPreset(view, model.geometry);
   if (preset.mode) {
     setViewMode(preset.mode);

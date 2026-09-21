@@ -65,3 +65,27 @@ export function splitIntoStrips(start: number, end: number, stripWidth: number):
   }
   return strips;
 }
+
+/**
+ * Stacks courses of exactly `courseHeight` from the bottom up, the last one taking the
+ * remainder. Unlike `splitIntoStrips`, the course height is never adjusted: every wall of
+ * the sauna therefore shares the same course lines, whatever its own height, and the
+ * battens line up at the corners.
+ *
+ * A remainder too thin to be worth a separate board is merged into the course below.
+ */
+export function stackCourses(total: number, courseHeight: number): Array<{ u0: number; u1: number }> {
+  const courses: Array<{ u0: number; u1: number }> = [];
+  if (total <= EPSILON || courseHeight <= EPSILON) {
+    return courses;
+  }
+  for (let bottom = 0; bottom < total - EPSILON; bottom += courseHeight) {
+    courses.push({ u0: bottom, u1: Math.min(bottom + courseHeight, total) });
+  }
+  const last = courses[courses.length - 1];
+  if (courses.length > 1 && last.u1 - last.u0 < courseHeight * 0.4) {
+    courses[courses.length - 2].u1 = last.u1;
+    courses.pop();
+  }
+  return courses;
+}

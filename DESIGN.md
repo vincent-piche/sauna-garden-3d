@@ -30,10 +30,10 @@ Le module principal est **2500 × 80 × 40 mm**. Une pièce est modélisée dans
 nommées de `ORIENTATION` (à plat, sur chant, debout). Ces six rotations ont été vérifiées
 numériquement contre l'ordre d'Euler `XYZ` de Three.js.
 
-Chaque latte est modélisée individuellement, pas simulée par une texture. Pour qu'elles se
-lisent au lieu de former un panneau plat, deux choses les distinguent : une teinte prise dans
-une palette de six nuances de pin, et quelques dixièmes de millimètre de relief ajoutés à
-l'épaisseur *dessinée*, en cycle d'une latte à la suivante. La pièce restant centrée sur sa
+Chaque latte est modélisée individuellement, pas simulée par une texture, et **posée à
+l'horizontale**. Pour qu'elles se lisent au lieu de former un panneau plat, deux choses les
+distinguent : une teinte prise dans une palette de six nuances de pin, et quelques dixièmes de
+millimètre de relief ajoutés à l'épaisseur *dessinée*, en cycle d'un rang au suivant. La pièce restant centrée sur sa
 couche, elle dépasse des deux côtés : les joints accrochent la lumière à l'intérieur comme à
 l'extérieur. **L'épaisseur commandée, elle, ne change pas** : la nomenclature reste juste.
 
@@ -67,11 +67,21 @@ aucune valeur de résistance thermique n'est calculée ni affichée.
 latéraux s'arrêtent contre elles. Il n'y a donc pas de bois en double dans les angles, et la
 largeur maximale d'une baie est la largeur extérieure moins deux jambages.
 
-Chaque couche est découpée en lames verticales. Une lame traversée par une ouverture est
-recoupée en morceaux au-dessus et en dessous (soustraction de rectangles). Ce découpage
-unique gère à la fois les ouvertures et le **haut incliné** des murs latéraux : chaque lame
-est coupée à la hauteur du rampant au droit de son axe, ce qui produit un bord supérieur
-légèrement en marches d'escalier (une marche par lame).
+**Pose horizontale.** Chaque couche est montée en **rangs horizontaux**, comme les lattes
+sont réellement fixées. Les rangs font exactement la hauteur de latte à partir du sol, sans
+ajustement : tous les murs partagent donc les mêmes lignes de rang quelle que soit leur
+hauteur propre, et les lattes se raccordent aux angles. Seul le rang de tête reprend le
+reste, et il est fusionné avec celui du dessous s'il est trop mince pour valoir une pièce.
+
+Un rang traversé par une ouverture ressort en deux morceaux (soustraction de rectangles),
+et un rang qui affleure le linteau ou l'allège sort en délardé : la nomenclature affiche
+alors des sections comme 80 × 10, qui sont de vraies refentes. C'est le prix d'une allège
+qui ne tombe pas sur une ligne de rang.
+
+Le **haut incliné** des murs latéraux est traité en bornant chaque rang à la portion de mur
+qui atteint sa mi-hauteur, le point de croisement étant trouvé par dichotomie — ce qui vaut
+pour n'importe quel rampant, pas seulement pour une droite. Le rampant devient donc un
+escalier d'une demi-hauteur de rang au maximum, entièrement caché sous le débord de toiture.
 
 ## 4. Toiture
 
@@ -294,7 +304,22 @@ d'ensoleillement** : c'est un outil pour juger une implantation.
 Le vitrage ne projette pas d'ombre, pour que la lumière traverse réellement la baie et la
 porte. La vue *Interior* ne retire plus la façade avant pour la même raison.
 
-## 11. Fichier de projet
+## 11. Interface et mobile
+
+Au-delà de 860 px, le panneau de paramètres est une colonne de la grille. En dessous, il
+devient un tiroir qui glisse par-dessus la scène, fermé par défaut et ouvert par un bouton
+flottant ; choisir une vue le referme, puisqu'il masque justement ce qu'on veut regarder.
+
+En portrait, le champ vertical de la caméra est élargi pour que le champ **horizontal** reste
+constant : sans cela le sauna serait recadré sur un téléphone tenu debout.
+
+Gestes tactiles : le canvas porte `touch-action: none`, sans quoi le navigateur confisquerait
+les gestes avant que la scène ne les voie. Deux doigts font toujours le pincement pour zoomer
+et le déplacement. Un doigt fait tourner la vue par défaut ; un bouton flottant le bascule en
+déplacement, parce qu'un téléphone n'a pas de second bouton de souris et qu'aucun des deux
+comportements ne convient à lui seul.
+
+## 12. Fichier de projet
 
 Le projet complet — le bâtiment (`SaunaConfig`) **et** son site (`SiteConfig`) — s'enregistre
 sur le disque en JSON (`sauna-projet.json`), via la *File System Access API* quand le
@@ -308,7 +333,7 @@ correspondant. Il n'existe donc pas de fichier capable de produire un modèle no
 constructible. La `version` n'est pas encore utilisée pour migrer : une future version du
 format devra décider quoi faire des fichiers de version 1.
 
-## 12. Ce que la V1 ne fait volontairement pas
+## 13. Ce que la V1 ne fait volontairement pas
 
 Réalité augmentée, photogrammétrie, génération d'images IA, calcul structurel, validation
 réglementaire, calcul thermique détaillé, étude d'ensoleillement normative. La priorité a été mise sur une base paramétrique
