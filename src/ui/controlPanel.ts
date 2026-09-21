@@ -108,6 +108,33 @@ const ENVIRONMENT_TOGGLES: ToggleField[] = [
   { scope: 'site', key: 'showDecor', label: 'Décor du jardin' }
 ];
 
+/**
+ * First in the panel and open by default: on a machine that struggles, this is the group
+ * to reach for, and it should not have to be found.
+ */
+const QUALITY_GROUP: FieldGroup = {
+  title: 'Qualité de rendu',
+  open: true,
+  toggles: [
+    { scope: 'render', key: 'ambientOcclusion', label: 'Occlusion ambiante' },
+    { scope: 'render', key: 'waterReflections', label: "Reflets de l'eau" },
+    { scope: 'render', key: 'detailedVegetation', label: 'Végétation détaillée' },
+    { scope: 'render', key: 'highResolutionShadows', label: 'Ombres fines' }
+  ],
+  fields: [
+    {
+      scope: 'render',
+      key: 'renderScale',
+      label: 'Résolution',
+      min: 1,
+      max: 2,
+      step: 0.25,
+      unit: '×',
+      format: (value) => `× ${value}`
+    }
+  ]
+};
+
 const FIELD_GROUPS: FieldGroup[] = [
   {
     title: 'Soleil',
@@ -124,27 +151,6 @@ const FIELD_GROUPS: FieldGroup[] = [
       building('exteriorWidth', 'Largeur', 1200, 4000, 10),
       building('exteriorDepth', 'Profondeur', 1500, 5000, 10),
       building('entranceHeight', 'Hauteur (avant)', 1800, 3000, 10)
-    ]
-  },
-  {
-    title: 'Qualité de rendu',
-    toggles: [
-      { scope: 'render', key: 'ambientOcclusion', label: 'Occlusion ambiante' },
-      { scope: 'render', key: 'waterReflections', label: "Reflets de l'eau" },
-      { scope: 'render', key: 'detailedVegetation', label: 'Végétation détaillée' },
-      { scope: 'render', key: 'highResolutionShadows', label: 'Ombres fines' }
-    ],
-    fields: [
-      {
-        scope: 'render',
-        key: 'renderScale',
-        label: 'Résolution',
-        min: 1,
-        max: 2,
-        step: 0.25,
-        unit: '×',
-        format: (value) => `× ${value}`
-      }
     ]
   },
   {
@@ -262,6 +268,9 @@ const FIELD_GROUPS: FieldGroup[] = [
   }
 ];
 
+/** Every group holding parameters, whatever its place in the panel. */
+const ALL_GROUPS: FieldGroup[] = [QUALITY_GROUP, ...FIELD_GROUPS];
+
 const VIEW_ORDER: ViewName[] = [
   'exterior',
   'interior',
@@ -319,6 +328,8 @@ export class ControlPanel {
       el('p', 'app-subtitle', 'Modèle paramétrique — façade avant côté piscine, baie arrière sur la vallée.')
     );
 
+    this.addGroup(container, QUALITY_GROUP);
+
     const viewSection = createSection(container, 'Vues');
     createButtonRow(
       viewSection,
@@ -353,17 +364,7 @@ export class ControlPanel {
     container.append(this.warningsBox);
 
     for (const group of FIELD_GROUPS) {
-      const section = createSection(container, group.title, { collapsible: true, open: group.open ?? false });
-      if (group.toggles) {
-        const row = el('div', 'button-row');
-        for (const toggle of group.toggles) {
-          this.addToggle(row, toggle);
-        }
-        section.append(row, el('div', 'field'));
-      }
-      for (const field of group.fields) {
-        this.addSlider(section, field);
-      }
+      this.addGroup(container, group);
     }
 
     const projectSection = createSection(container, 'Projet');
@@ -428,7 +429,7 @@ export class ControlPanel {
     const saunaTarget = this.config as unknown as Record<string, number>;
     const siteTarget = this.site as unknown as Record<string, number>;
     const renderTarget = this.render as unknown as Record<string, number>;
-    for (const group of FIELD_GROUPS) {
+    for (const group of ALL_GROUPS) {
       for (const field of group.fields) {
         const handle = this.sliders.get(`${field.scope}.${field.key}`);
         if (!handle) {
@@ -458,6 +459,20 @@ export class ControlPanel {
 
   private readToggle(field: ToggleField): boolean {
     return field.scope === 'site' ? this.site[field.key] : this.render[field.key];
+  }
+
+  private addGroup(container: HTMLElement, group: FieldGroup): void {
+    const section = createSection(container, group.title, { collapsible: true, open: group.open ?? false });
+    if (group.toggles) {
+      const row = el('div', 'button-row');
+      for (const toggle of group.toggles) {
+        this.addToggle(row, toggle);
+      }
+      section.append(row, el('div', 'field'));
+    }
+    for (const field of group.fields) {
+      this.addSlider(section, field);
+    }
   }
 
   private addToggle(parent: HTMLElement, field: ToggleField): void {
@@ -559,7 +574,7 @@ export class ControlPanel {
   }
 
   private refreshEnabledState(): void {
-    for (const group of FIELD_GROUPS) {
+    for (const group of ALL_GROUPS) {
       for (const field of group.fields) {
         const handle = this.sliders.get(`${field.scope}.${field.key}`);
         handle?.setEnabled(field.enabled ? field.enabled(this.config) : true);

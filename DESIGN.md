@@ -249,8 +249,10 @@ cône.
 résolution se règlent depuis le panneau et se sauvegardent avec le projet. Ce sont des
 arbitrages de machine, pas des choix de conception : ils vivent donc dans une configuration à
 part, `RenderConfig`. L'occlusion ambiante est de loin la plus coûteuse — dans une boucle de
-rendu synchrone elle double le temps par image — et c'est la première à couper sur une
-machine qui peine.
+rendu synchrone elle double le temps par image — et elle est donc désactivée par défaut : la
+chaîne de post-traitement n'est construite qu'à la première activation, et la scène se rend
+sans elle le reste du temps. Le groupe est placé en tête du panneau et ouvert par défaut,
+parce que c'est celui qu'on cherche quand la scène saccade.
 
 **Veinage du bois.** Chaque pièce est une boîte dont les faces sont mappées de 0 à 1, et
 chaque latte fait environ 80 mm de large pour des longueurs métriques. Le veinage est donc

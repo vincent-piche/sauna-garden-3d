@@ -16,7 +16,9 @@ export interface RenderConfig {
 }
 
 export const DEFAULT_RENDER_CONFIG: RenderConfig = {
-  ambientOcclusion: true,
+  // Off by default: the most expensive option of the lot, and the one a tired machine
+  // notices first. It is an improvement to opt into, not a cost to discover.
+  ambientOcclusion: false,
   waterReflections: true,
   detailedVegetation: true,
   highResolutionShadows: true,

@@ -247,16 +247,16 @@ pris en compte par les modes de visualisation (via son `tag`) et par la nomencla
 
 ### Qualité de rendu
 
-La section **Qualité de rendu** du panneau permet de couper chaque amélioration
-indépendamment, et ces réglages sont enregistrés avec le projet :
+La section **Qualité de rendu**, en tête du panneau et ouverte par défaut, permet de couper
+chaque amélioration indépendamment, et ces réglages sont enregistrés avec le projet :
 
-| Réglage | Coût | À couper en premier |
-|---|---|---|
-| Occlusion ambiante | élevé | oui, c'est la plus chère |
-| Reflets de l'eau | moyen — une seconde passe de rendu en 512 px | ensuite |
-| Végétation détaillée | faible — géométrie seulement | rarement utile |
-| Ombres fines | faible — 4096 px au lieu de 2048 | si la carte d'ombres pèse |
-| Résolution | proportionnel à la surface | levier le plus efficace sur un écran dense |
+| Réglage | Défaut | Coût | À couper en premier |
+|---|---|---|---|
+| Occlusion ambiante | **désactivée** | élevé | oui, c'est la plus chère |
+| Reflets de l'eau | activés | moyen — une seconde passe de rendu en 512 px | ensuite |
+| Végétation détaillée | activée | faible — géométrie seulement | rarement utile |
+| Ombres fines | activées | faible — 4096 px au lieu de 2048 | si la carte d'ombres pèse |
+| Résolution | × 2 | proportionnel à la surface | levier le plus efficace sur un écran dense |
 
 | Mode | Contenu |
 |---|---|
